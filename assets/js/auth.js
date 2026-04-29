@@ -9,90 +9,79 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 // (MASUKKAN EMAIL GITHUB KAMU DI SINI)
 const emailAdmin = "ccn.start@gmail.com";
 
+// 1. Fungsi Login (Arahkan ke beranda setelah sukses)
 async function loginWithGithub() {
-    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+    const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'github',
         options: {
-            redirectTo: window.location.origin + '/keuangan.html' 
+            redirectTo: window.location.origin + '/beranda.html' 
         }
     });
-    if (error) {
-        console.error("Error saat login:", error.message);
-        alert("Gagal login Bro: " + error.message);
-    }
+    if (error) alert("Gagal login Bro: " + error.message);
 }
 
+// 2. Fungsi Logout
 async function logout() {
     await supabaseClient.auth.signOut();
-    window.location.href = 'index.html'; // Sekarang logout kembalinya ke index.html
+    window.location.href = 'index.html'; 
 }
 
-// SATPAM ZERO TRUST
+// 3. SATPAM GLOBAL (Middleware)
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    const currentPage = window.location.pathname;
+    const currentPath = window.location.pathname;
     
-    // Deteksi apakah user sedang berada di halaman depan (login)
-    const isLoginPage = currentPage === '/' || currentPage.endsWith('index.html');
+    // Cek apakah user sedang di pintu depan (Login Page)
+    const isLoginPage = currentPath === '/' || currentPath.endsWith('index.html');
 
-    // 1. JIKA BELUM LOGIN
+    // KONDISI A: BELUM LOGIN
     if (!session) {
         if (!isLoginPage) {
-            // Kalau nyasar ke halaman dalam, tendang ke depan
+            // Jika coba akses halaman lain (beranda/portofolio/dll) tanpa login
             window.location.href = 'index.html'; 
         } else {
-            // Kalau di depan, silakan tampilkan form loginnya
+            // Jika di halaman login, tampilkan formnya
             document.body.style.display = 'block'; 
         }
         return;
     }
 
-    // 2. JIKA SUDAH LOGIN
+    // KONDISI B: SUDAH LOGIN
     if (session) {
         const userEmail = session.user.email;
         
-        // Pengecekan Whitelist Admin
+        // Validasi Whitelist Email
         if (userEmail.toLowerCase().trim() !== emailAdmin.toLowerCase().trim()) {
             alert("Akses Ditolak! Anda bukan admin.");
             await supabaseClient.auth.signOut();
-            
-            if (!isLoginPage) window.location.href = 'index.html';
-            else document.body.style.display = 'block'; 
-            
+            window.location.href = 'index.html';
             return; 
+        } 
+
+        // JIKA ADMIN VALID
+        if (isLoginPage) {
+            // Jika sudah login tapi buka halaman login, lempar ke beranda
+            window.location.href = 'beranda.html';
         } else {
-            // JIKA ADMIN ASLI
-            if (isLoginPage) {
-                // Udah login kok di halaman login? Otomatis lempar ke dalam!
-                window.location.href = 'keuangan.html'; 
-            } else {
-                // Berada di halaman dalam yang benar, tampilkan halamannya
-                document.body.style.display = 'block';
-                // Jika halaman punya fungsi tarik data db, jalankan
-                if (typeof ambilDataTransaksi === "function") {
-                    ambilDataTransaksi();
-                }
+            // Tampilkan konten halaman terproteksi
+            document.body.style.display = 'block';
+            
+            // Jalankan fungsi khusus jika ada (misal ambil data keuangan)
+            if (typeof ambilDataTransaksi === "function" && currentPath.includes('keuangan.html')) {
+                ambilDataTransaksi();
             }
         }
     }
 }
 
+// Pemicu otomatis saat halaman selesai dimuat
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Panggil Satpam di sini, SETELAH seluruh kerangka HTML siap!
     checkSession(); 
 
-    // 2. Tombol Login
+    // Binding tombol
     const btnLogin = document.getElementById('btnLoginGithub');
-    if (btnLogin) {
-        btnLogin.addEventListener('click', (e) => {
-            e.preventDefault(); 
-            loginWithGithub(); 
-        });
-    }
+    if (btnLogin) btnLogin.addEventListener('click', loginWithGithub);
 
-    // 3. Tombol Logout
     const btnLogout = document.getElementById('logoutBtn');
-    if (btnLogout) {
-        btnLogout.addEventListener('click', logout); 
-    }
+    if (btnLogout) btnLogout.addEventListener('click', logout);
 });
