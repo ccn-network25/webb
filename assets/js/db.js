@@ -1,23 +1,18 @@
-// Pastikan halaman sudah termuat sempurna
 document.addEventListener("DOMContentLoaded", () => {
     const formTransaksi = document.getElementById('formTransaksi');
     if (formTransaksi) {
         formTransaksi.addEventListener('submit', tambahTransaksi);
     }
-    // Langsung tarik data saat halaman dibuka
-    ambilDataTransaksi();
+    // HAPUS baris ambilDataTransaksi(); dari sini! Biarkan kosong.
 });
 
-// Fungsi untuk SIMPAN data (INSERT)
+// Fungsi untuk SIMPAN data (INSERT) - (Tetap sama seperti sebelumnya)
 async function tambahTransaksi(e) {
-    e.preventDefault(); // Mencegah reload halaman
-
-    // Ambil nilai dari inputan form
+    e.preventDefault(); 
     const tipe = document.getElementById('tipe').value;
     const keterangan = document.getElementById('keterangan').value;
     const nominal = document.getElementById('nominal').value;
 
-    // Cek siapa user yang sedang login
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     if (!user) {
@@ -26,34 +21,28 @@ async function tambahTransaksi(e) {
         return;
     }
 
-    // Tembak data ke tabel Supabase
-    const { data, error } = await supabaseClient
+    const { error } = await supabaseClient
         .from('transaksi_keuangan')
-        .insert([
-            { 
-                user_id: user.id, 
-                tipe: tipe, 
-                keterangan: keterangan, 
-                nominal: parseInt(nominal) 
-            }
-        ]);
+        .insert([{ user_id: user.id, tipe: tipe, keterangan: keterangan, nominal: parseInt(nominal) }]);
 
     if (error) {
         console.error("Gagal simpan:", error);
         alert("Gagal nyimpen data Bro: " + error.message);
     } else {
-        // Kalau sukses, kosongkan form dan tarik data terbaru
         document.getElementById('formTransaksi').reset();
-        ambilDataTransaksi();
+        ambilDataTransaksi(); // Tarik ulang data setelah sukses input
     }
 }
 
-// Fungsi untuk TARIK data (SELECT)
+// Fungsi untuk TARIK data (SELECT) - (Ubah sedikit untuk keamanan)
 async function ambilDataTransaksi() {
+    // Pastikan tabel kosong sebelum mulai narik
+    const tbody = document.getElementById('tabelData');
+    if (tbody) tbody.innerHTML = ''; 
+
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
-    // Tarik data khusus milik user ini, urutkan dari yang terbaru
     const { data, error } = await supabaseClient
         .from('transaksi_keuangan')
         .select('*')
@@ -64,33 +53,23 @@ async function ambilDataTransaksi() {
         console.error("Gagal tarik data:", error);
         return;
     }
-
     renderTabel(data);
 }
 
-// Fungsi untuk NAMPILIN data ke tabel HTML
+// Fungsi untuk NAMPILIN data ke tabel HTML - (Tetap sama)
 function renderTabel(data) {
     const tbody = document.getElementById('tabelData');
     if (!tbody) return;
-
-    tbody.innerHTML = ''; // Bersihkan isi tabel lama
-
+    tbody.innerHTML = ''; 
     data.forEach((item) => {
-        // Format tanggal biar rapi
         const tgl = new Date(item.created_at).toLocaleDateString('id-ID', {
             day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
         });
-
-        // Format angka jadi Rupiah
         const rupiah = new Intl.NumberFormat('id-ID', { 
             style: 'currency', currency: 'IDR', minimumFractionDigits: 0
         }).format(item.nominal);
-
-        // Bikin warna hijau buat masuk, merah buat keluar
         const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
         const simbol = item.tipe === 'masuk' ? '+' : '-';
-
-        // Masukkan baris ke tabel
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${tgl}</td>
