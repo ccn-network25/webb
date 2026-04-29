@@ -7,7 +7,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 // --- WHITELIST EMAIL ---
 // (MASUKKAN EMAIL GITHUB KAMU DI SINI)
-const emailAdmin = "email_github_kamu@gmail.com";
+const emailAdmin = "ccn.start@gmail.com";
 
 // 2. Fungsi Login pakai GitHub (Ini yang tadi kemungkinan hilang)
 async function loginWithGithub() {
