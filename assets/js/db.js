@@ -1,24 +1,16 @@
 // assets/js/db.js
-var dataTransaksi = []; // Gunakan var agar benar-benar global
-var isMasked = false;
+window.dataTransaksi = [];
+window.isMasked = false;
 
-// --- 1. PENDAFTARAN FUNGSI KE WINDOW (Agar HTML bisa manggil) ---
+// --- 1. REGISTRASI FUNGSI GLOBAL ---
 window.toggleMask = function() {
-    isMasked = !isMasked;
-    console.log("Sensor diubah ke:", isMasked);
+    window.isMasked = !window.isMasked;
     window.ambilDataTransaksi();
-};
-
-window.setLimit = function() {
-    const val = document.getElementById('inputLimit').value;
-    localStorage.setItem('budgetLimit', val);
-    updateSummary(dataTransaksi);
 };
 
 window.bukaModalEdit = function(id) {
     console.log("Membuka Modal untuk ID:", id);
-    // Cari data berdasarkan ID (pakai == untuk jaga-jaga beda tipe data string/int)
-    const item = dataTransaksi.find(i => i.id == id);
+    const item = window.dataTransaksi.find(i => i.id == id);
     if (item) {
         document.getElementById('editId').value = item.id;
         document.getElementById('editTipe').value = item.tipe;
@@ -33,7 +25,6 @@ window.bukaModalEdit = function(id) {
 
 window.hapusData = async function(id) {
     if (confirm("Hapus transaksi ini secara permanen?")) {
-        console.log("Menghapus ID:", id);
         const { error } = await supabaseClient.from('transaksi_keuangan').delete().eq('id', id);
         if (error) alert("Gagal hapus: " + error.message);
         window.ambilDataTransaksi();
@@ -72,10 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('filterBulan').value = String(skrg.getMonth() + 1).padStart(2, '0');
     document.getElementById('filterTahun').value = skrg.getFullYear();
 
-    setTimeout(() => { window.ambilDataTransaksi(); }, 800);
+    setTimeout(() => { window.ambilDataTransaksi(); }, 1000);
 });
 
-async function ambilDataTransaksi() {
+window.ambilDataTransaksi = async function() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
@@ -94,11 +85,11 @@ async function ambilDataTransaksi() {
         .order('created_at', { ascending: false });
 
     if (!error) {
-        dataTransaksi = data;
+        window.dataTransaksi = data;
         updateSummary(data);
         renderTabel(data);
     }
-}
+};
 
 async function tambahTransaksi(e) {
     e.preventDefault();
@@ -107,7 +98,7 @@ async function tambahTransaksi(e) {
         user_id: user.id,
         tipe: document.getElementById('tipe').value,
         keterangan: document.getElementById('keterangan').value,
-        nominal: parseInt(nominal.value)
+        nominal: parseInt(document.getElementById('nominal').value)
     };
 
     const { error } = await supabaseClient.from('transaksi_keuangan').insert([payload]);
@@ -126,7 +117,7 @@ function renderTabel(data) {
     
     data.forEach(item => {
         const tgl = new Date(item.created_at).getDate();
-        const nominalStr = isMasked ? "Rp •••" : `Rp ${item.nominal.toLocaleString('id-ID')}`;
+        const nominalStr = window.isMasked ? "Rp •••" : `Rp ${item.nominal.toLocaleString('id-ID')}`;
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -143,14 +134,13 @@ function renderTabel(data) {
 }
 
 function updateSummary(data) {
-    let keluar = 0;
-    let total = 0;
+    let keluar = 0, total = 0;
     data.forEach(i => {
         if(i.tipe === 'keluar') keluar += i.nominal;
         total += (i.tipe === 'masuk' ? i.nominal : -i.nominal);
     });
 
-    const format = (num) => isMasked ? "Rp •••" : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+    const format = (num) => window.isMasked ? "Rp •••" : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
     document.getElementById('totalSaldo').innerText = format(total);
 
     const limit = parseInt(localStorage.getItem('budgetLimit')) || 0;
@@ -159,23 +149,5 @@ function updateSummary(data) {
         const persen = Math.min((keluar / limit) * 100, 100);
         bar.style.width = persen + '%';
         bar.className = "progress-bar progress-bar-striped progress-bar-animated " + (persen < 60 ? "bg-success" : persen < 90 ? "bg-warning" : "bg-danger");
-        document.getElementById('labelPersen').innerText = Math.round(persen) + '%';
-        document.getElementById('labelSisa').innerText = `Sisa: ${format(limit - keluar)}`;
     }
 }
-
-// --- 4. EXPORT FUNCTIONS ---
-window.exportExcel = function() {
-    const ws = XLSX.utils.json_to_sheet(dataTransaksi);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data");
-    XLSX.writeFile(wb, "Laporan_Keuangan.xlsx");
-};
-
-window.exportPDF = function() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const body = dataTransaksi.map(i => [new Date(i.created_at).toLocaleDateString(), i.keterangan, i.tipe, i.nominal]);
-    doc.autoTable({ head: [['Tgl', 'Ket', 'Tipe', 'Nominal']], body });
-    doc.save("Laporan_Keuangan.pdf");
-};
