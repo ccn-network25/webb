@@ -1,3 +1,145 @@
+let dataTransaksi = [];
+let isMasked = false;
+let myChart = null;
+
+// --- INITIALIZATION ---
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById('formTransaksi');
+    if (form) form.addEventListener('submit', tambahTransaksi);
+    
+    // Inisialisasi Security Data
+    document.getElementById('lastLoginTime').innerText = new Date().toLocaleString('id-ID');
+    fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => {
+        document.getElementById('userIP').innerText = data.ip;
+    });
+
+    startSessionTimer(15); // Sesi 15 menit
+});
+
+// --- SESSION TIMER (Security UX) ---
+function startSessionTimer(minutes) {
+    let seconds = minutes * 60;
+    const timerEl = document.getElementById('sessionTimer');
+    const interval = setInterval(() => {
+        let m = Math.floor(seconds / 60);
+        let s = seconds % 60;
+        timerEl.innerText = `Sesi: ${m}:${s < 10 ? '0' : ''}${s}`;
+        if (seconds <= 0) {
+            clearInterval(interval);
+            alert("Sesi berakhir demi keamanan!");
+            logout();
+        }
+        seconds--;
+    }, 1000);
+}
+
+// --- DATA MASKING (Anti-Shoulder Surfing) ---
+window.toggleMask = function() {
+    isMasked = !isMasked;
+    const icon = document.getElementById('maskIcon');
+    const text = document.getElementById('maskText');
+    
+    icon.innerText = isMasked ? '🙈' : '👁️';
+    text.innerText = isMasked ? 'Tampilkan Saldo' : 'Sembunyikan Saldo';
+    
+    ambilDataTransaksi(); // Re-render dengan mask
+};
+
+// --- CORE FUNCTIONS ---
+async function ambilDataTransaksi() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabaseClient
+        .from('transaksi_keuangan')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+    if (!error) {
+        dataTransaksi = data;
+        updateSummary(data);
+        renderTabel(data);
+        updateChart(data);
+    }
+}
+
+function updateSummary(data) {
+    let masuk = 0, keluar = 0;
+    data.forEach(item => {
+        if (item.tipe === 'masuk') masuk += item.nominal;
+        else keluar += item.nominal;
+    });
+
+    const format = (num) => {
+        if (isMasked) return "Rp ••••••";
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+    };
+
+    document.getElementById('totalSaldo').innerText = format(masuk - keluar);
+    document.getElementById('totalMasuk').innerText = format(masuk);
+    document.getElementById('totalKeluar').innerText = format(keluar);
+}
+
+function renderTabel(data) {
+    const tbody = document.getElementById('tabelData');
+    tbody.innerHTML = '';
+    
+    data.forEach(item => {
+        const tgl = new Date(item.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        const nominal = isMasked ? "Rp ••••" : `Rp ${item.nominal.toLocaleString('id-ID')}`;
+        const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="ps-3 small text-secondary">${tgl}</td>
+            <td class="fw-bold">${item.keterangan}</td>
+            <td><span class="badge ${item.tipe === 'masuk' ? 'bg-success' : 'bg-danger'} text-uppercase" style="font-size:0.6rem">${item.tipe}</span></td>
+            <td class="${warna} fw-bold">${nominal}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-link text-danger p-0" onclick="hapusData(${item.id})">Hapus</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// --- VISUALIZATION (Chart.js) ---
+function updateChart(data) {
+    const ctx = document.getElementById('cashFlowChart').getContext('2d');
+    let masuk = data.filter(i => i.tipe === 'masuk').reduce((a, b) => a + b.nominal, 0);
+    let keluar = data.filter(i => i.tipe === 'keluar').reduce((a, b) => a + b.nominal, 0);
+
+    if (myChart) myChart.destroy();
+
+    myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pemasukan', 'Pengeluaran'],
+            datasets: [{
+                data: [masuk, keluar],
+                backgroundColor: ['#198754', '#dc3545'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+// --- SEARCH & FILTER ---
+window.filterTabel = function() {
+    const keyword = document.getElementById('searchData').value.toLowerCase();
+    const filtered = dataTransaksi.filter(item => 
+        item.keterangan.toLowerCase().includes(keyword)
+    );
+    renderTabel(filtered);
+};
+
+// ... (Fungsi hapusData, exportExcel, exportPDF tetap sama seperti sebelumnya) ...
+
 let dataTransaksi = []; // Data global untuk kebutuhan export
 
 document.addEventListener("DOMContentLoaded", () => {
