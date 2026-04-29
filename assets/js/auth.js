@@ -52,27 +52,34 @@ async function checkSession() {
         
         // Validasi Whitelist Email
         if (userEmail.toLowerCase().trim() !== emailAdmin.toLowerCase().trim()) {
-            alert("Akses Ditolak! Anda bukan admin.");
+            
+            // HANYA munculkan alert 1x kalau posisinya di halaman dalam
+            if (!isLoginPage) {
+                alert("Akses Ditolak! Anda bukan admin.");
+            }
+            
+            // Sapu bersih sisa sesi
             await supabaseClient.auth.signOut();
-            window.location.href = 'index.html';
+            
+            // Tentukan arah setelah disapu bersih
+            if (!isLoginPage) {
+                window.location.href = 'index.html'; // Tendang ke depan
+            } else {
+                document.body.style.display = 'block'; // Tetap di depan, tampilkan form
+            }
             return; 
         } 
 
         // JIKA ADMIN VALID
         if (isLoginPage) {
-            // Jika sudah login tapi buka halaman login, lempar ke beranda
             window.location.href = 'beranda.html';
         } else {
-            // Tampilkan konten halaman terproteksi
             document.body.style.display = 'block';
-            
-            // Jalankan fungsi khusus jika ada (misal ambil data keuangan)
             if (typeof ambilDataTransaksi === "function" && currentPath.includes('keuangan.html')) {
                 ambilDataTransaksi();
             }
         }
     }
-}
 
 // Pemicu otomatis saat halaman selesai dimuat
 document.addEventListener("DOMContentLoaded", () => {
