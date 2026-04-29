@@ -9,7 +9,6 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 // (MASUKKAN EMAIL GITHUB KAMU DI SINI)
 const emailAdmin = "ccn.start@gmail.com";
 
-// 1. Fungsi Login (Arahkan ke beranda setelah sukses)
 async function loginWithGithub() {
     const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'github',
@@ -20,57 +19,43 @@ async function loginWithGithub() {
     if (error) alert("Gagal login Bro: " + error.message);
 }
 
-// 2. Fungsi Logout
 async function logout() {
     await supabaseClient.auth.signOut();
     window.location.href = 'index.html'; 
 }
 
-// 3. SATPAM GLOBAL (Middleware)
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const currentPath = window.location.pathname;
     
-    // Cek apakah user sedang di pintu depan (Login Page)
     const isLoginPage = currentPath === '/' || currentPath.endsWith('index.html');
 
-    // KONDISI A: BELUM LOGIN
     if (!session) {
         if (!isLoginPage) {
-            // Jika coba akses halaman lain (beranda/portofolio/dll) tanpa login
             window.location.href = 'index.html'; 
         } else {
-            // Jika di halaman login, tampilkan formnya
             document.body.style.display = 'block'; 
         }
         return;
     }
 
-    // KONDISI B: SUDAH LOGIN
     if (session) {
         const userEmail = session.user.email;
         
-        // Validasi Whitelist Email
         if (userEmail.toLowerCase().trim() !== emailAdmin.toLowerCase().trim()) {
-            
-            // HANYA munculkan alert 1x kalau posisinya di halaman dalam
             if (!isLoginPage) {
                 alert("Akses Ditolak! Anda bukan admin.");
             }
-            
-            // Sapu bersih sisa sesi
             await supabaseClient.auth.signOut();
             
-            // Tentukan arah setelah disapu bersih
             if (!isLoginPage) {
-                window.location.href = 'index.html'; // Tendang ke depan
+                window.location.href = 'index.html';
             } else {
-                document.body.style.display = 'block'; // Tetap di depan, tampilkan form
+                document.body.style.display = 'block';
             }
             return; 
         } 
 
-        // JIKA ADMIN VALID
         if (isLoginPage) {
             window.location.href = 'beranda.html';
         } else {
@@ -80,15 +65,14 @@ async function checkSession() {
             }
         }
     }
+}
 
-// Pemicu otomatis saat halaman selesai dimuat
 document.addEventListener("DOMContentLoaded", () => {
     checkSession(); 
 
-    // Binding tombol
     const btnLogin = document.getElementById('btnLoginGithub');
     if (btnLogin) btnLogin.addEventListener('click', loginWithGithub);
 
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) btnLogout.addEventListener('click', logout);
-});
+}); // <--- PASTIKAN BARIS INI IKUT TERSALIN DAN BERADA PALING BAWAH
