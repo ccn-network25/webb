@@ -32,27 +32,39 @@ async function logout() {
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const currentPage = window.location.pathname;
-    const emailAdmin = "email_github_kamu@gmail.com"; // Pastikan email ini benar
+    
+    // GANTI DENGAN EMAIL KAMU SENDIRI
+    const emailAdmin = "isi_dengan_email_github_kamu@gmail.com"; 
+
+    // Proteksi jika paksa masuk tanpa login
+    if (!session && currentPage.includes('keuangan.html')) {
+        window.location.href = 'login.html';
+        return;
+    } 
 
     if (session) {
         const userEmail = session.user.email;
         
         if (userEmail !== emailAdmin) {
+            // Jika penyusup, HAPUS sesi dan usir SEBELUM data sempat ditarik
             alert("Akses Ditolak! Sistem mengenali penyusup.");
             await supabaseClient.auth.signOut();
             window.location.href = 'login.html';
-            return;
+            return; 
         } else {
-            // JIKA EMAIL COCOK, barulah kita munculkan halaman body-nya
-            document.body.style.display = 'block';
+            // JIKA EMAIL COCOK, Tampilkan halaman dan SURUH narik data!
+            if (currentPage.includes('keuangan.html')) {
+                document.body.style.display = 'block'; 
+                // Panggil fungsi tarik data secara eksplisit di sini!
+                if (typeof ambilDataTransaksi === "function") {
+                    ambilDataTransaksi();
+                }
+            }
         }
     }
 
-    // Proteksi jika paksa masuk tanpa login
-    if (!session && currentPage.includes('keuangan.html')) {
-        window.location.href = 'login.html';
-    } 
-    else if (session && currentPage.includes('login.html')) {
+    // Redirect jika sudah login malah buka halaman login
+    if (session && currentPage.includes('login.html')) {
         window.location.href = 'keuangan.html';
     }
 }
