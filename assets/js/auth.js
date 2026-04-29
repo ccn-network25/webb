@@ -5,6 +5,10 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 // Membuka jalur koneksi ke backend
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
+// --- WHITELIST EMAIL ---
+// (MASUKKAN EMAIL GITHUB KAMU DI SINI)
+const emailAdmin = "email_github_kamu@gmail.com";
+
 // 2. Fungsi Login pakai GitHub (Ini yang tadi kemungkinan hilang)
 async function loginWithGithub() {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
