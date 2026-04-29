@@ -35,7 +35,7 @@ async function checkSession() {
 
     // --- FITUR WHITELIST AKUN (HANYA KAMU YANG BISA MASUK) ---
     // Ganti email di bawah ini dengan email yang kamu pakai di akun GitHub kamu!
-    const emailAdmin = "email_github_kamu@gmail.com"; 
+    const emailAdmin = "ccn.start@gmail.com"; 
 
     if (session) {
         const userEmail = session.user.email;
