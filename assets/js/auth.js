@@ -70,8 +70,21 @@ async function checkSession() {
 document.addEventListener("DOMContentLoaded", () => {
     checkSession(); 
 
+    // --- ALAT SADAP TOMBOL LOGIN ---
     const btnLogin = document.getElementById('btnLoginGithub');
-    if (btnLogin) btnLogin.addEventListener('click', loginWithGithub);
+    
+    if (btnLogin) {
+        console.log("STATUS: Tombol login berhasil dideteksi oleh JavaScript!"); 
+        
+        btnLogin.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            console.log("STATUS: Tombol diklik! Menjalankan perintah login..."); 
+            loginWithGithub(); 
+        });
+    } else {
+        console.error("STATUS ERROR: JavaScript TIDAK BISA menemukan tombol login di HTML. Cek ID-nya!");
+    }
+    // ---------------------------------
 
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) btnLogout.addEventListener('click', logout);
