@@ -28,16 +28,33 @@ async function logout() {
     }
 }
 
-// 4. Fungsi Gatekeeper (Satpam Pengecek Sesi)
+// 4. Fungsi Gatekeeper (Satpam Pengecek Sesi & Whitelist Email)
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const currentPage = window.location.pathname;
+
+    // --- FITUR WHITELIST AKUN (HANYA KAMU YANG BISA MASUK) ---
+    // Ganti email di bawah ini dengan email yang kamu pakai di akun GitHub kamu!
+    const emailAdmin = "email_github_kamu@gmail.com"; 
+
+    if (session) {
+        const userEmail = session.user.email;
+        
+        // Cek apakah email yang login cocok dengan email admin
+        if (userEmail !== emailAdmin) {
+            alert("Akses Ditolak! Sistem mengenali penyusup. Anda akan dikeluarkan otomatis.");
+            await supabaseClient.auth.signOut(); // Paksa logout
+            window.location.href = 'login.html'; // Tendang ke luar
+            return; // Hentikan proses pembacaan web
+        }
+    }
+    // ---------------------------------------------------------
 
     // Kalau belum login tapi maksa masuk halaman keuangan
     if (!session && currentPage.includes('keuangan.html')) {
         window.location.href = 'login.html';
     } 
-    // Kalau sudah login tapi iseng buka halaman login
+    // Kalau sudah login (dan emailnya benar) tapi iseng buka halaman login
     else if (session && currentPage.includes('login.html')) {
         window.location.href = 'keuangan.html';
     }
