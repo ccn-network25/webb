@@ -1,41 +1,87 @@
 let dataTransaksi = [];
 let isMasked = false;
 
+// --- 1. INITIALIZATION ---
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Set Filter ke Bulan & Tahun Sekarang
+    console.log("DB.js: Memulai sistem...");
+    
+    // Set filter tanggal ke hari ini
     const skrg = new Date();
     document.getElementById('filterBulan').value = String(skrg.getMonth() + 1).padStart(2, '0');
     document.getElementById('filterTahun').value = skrg.getFullYear();
     
-    // 2. Ambil Limit Anggaran dari Memory Browser
     const savedLimit = localStorage.getItem('budgetLimit') || 0;
     document.getElementById('inputLimit').value = savedLimit;
 
-    // 3. Pasang Event Form
     const form = document.getElementById('formTransaksi');
-    if (form) form.addEventListener('submit', tambahTransaksi);
+    if (form) {
+        form.addEventListener('submit', tambahTransaksi);
+        console.log("DB.js: Form terdeteksi dan siap digunakan.");
+    } else {
+        console.error("DB.js: Form tidak ditemukan! Cek ID 'formTransaksi' di HTML.");
+    }
     
-    // 4. Jalankan Security Timer & Ambil Data
     startSessionTimer(15);
     ambilDataTransaksi();
 });
 
-// --- LOGIKA BUDGET (KONTROL PENGELUARAN) ---
-window.setLimit = function() {
-    const limit = document.getElementById('inputLimit').value;
-    localStorage.setItem('budgetLimit', limit);
-    updateSummary(dataTransaksi); // Refresh bar
-};
+// --- 2. FUNGSI SIMPAN DATA (PROTECTED) ---
+async function tambahTransaksi(e) {
+    e.preventDefault();
+    console.log("DB.js: Mencoba menyimpan transaksi baru...");
 
-// --- CORE: AMBIL DATA DENGAN FILTER RENTANG WAKTU ---
+    try {
+        const tipe = document.getElementById('tipe').value;
+        const keterangan = document.getElementById('keterangan').value;
+        const nominal = document.getElementById('nominal').value;
+
+        // Cek Sesi User
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        
+        if (userError || !user) {
+            console.error("DB.js: Gagal mendapatkan user session.", userError);
+            alert("Sesi kamu tidak valid. Coba logout dan login lagi, Bro!");
+            return;
+        }
+
+        console.log("DB.js: User ID terdeteksi:", user.id);
+
+        // Eksekusi Insert ke Supabase
+        const { data, error } = await supabaseClient
+            .from('transaksi_keuangan') // PASTIKAN NAMA TABEL DI SUPABASE SAMA PERSIS
+            .insert([
+                { 
+                    user_id: user.id, 
+                    tipe: tipe, 
+                    keterangan: keterangan, 
+                    nominal: parseInt(nominal) 
+                }
+            ])
+            .select();
+
+        if (error) {
+            console.error("DB.js ERROR SUPABASE:", error.message, error.details);
+            alert("Database Error: " + error.message);
+        } else {
+            console.log("DB.js SUCCESS: Data tersimpan!", data);
+            document.getElementById('formTransaksi').reset();
+            ambilDataTransaksi(); // Refresh tabel otomatis
+        }
+    } catch (err) {
+        console.error("DB.js CRITICAL ERROR:", err);
+        alert("Ada kesalahan sistem, cek Console!");
+    }
+}
+
+// --- 3. AMBIL DATA DENGAN FILTER ---
 async function ambilDataTransaksi() {
+    console.log("DB.js: Mengambil riwayat transaksi...");
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
     const bulan = document.getElementById('filterBulan').value;
     const tahun = document.getElementById('filterTahun').value;
     
-    // Hitung range awal dan akhir bulan
     const start = `${tahun}-${bulan}-01T00:00:00`;
     const end = `${tahun}-${bulan}-31T23:59:59`;
 
@@ -51,36 +97,12 @@ async function ambilDataTransaksi() {
         dataTransaksi = data;
         updateSummary(data);
         renderTabel(data);
+    } else {
+        console.error("DB.js: Gagal menarik data.", error.message);
     }
 }
 
-// --- LOGIKA SIMPAN & HAPUS ---
-async function tambahTransaksi(e) {
-    e.preventDefault();
-    const tipe = document.getElementById('tipe').value;
-    const keterangan = document.getElementById('keterangan').value;
-    const nominal = document.getElementById('nominal').value;
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    const { error } = await supabaseClient
-        .from('transaksi_keuangan')
-        .insert([{ user_id: user.id, tipe, keterangan, nominal: parseInt(nominal) }]);
-
-    if (error) alert(error.message);
-    else {
-        document.getElementById('formTransaksi').reset();
-        ambilDataTransaksi();
-    }
-}
-
-window.hapusData = async function(id) {
-    if (confirm("Hapus data ini secara permanen?")) {
-        const { error } = await supabaseClient.from('transaksi_keuangan').delete().eq('id', id);
-        if (!error) ambilDataTransaksi();
-    }
-};
-
-// --- UPDATE UI (SUMMARY & BUDGET BAR) ---
+// --- 4. LOGIKA UI (BUDGET & TABLE) ---
 function updateSummary(data) {
     let masuk = 0, keluar = 0;
     data.forEach(item => {
@@ -92,7 +114,6 @@ function updateSummary(data) {
 
     document.getElementById('totalSaldo').innerText = format(masuk - keluar);
 
-    // Hitung Progress Bar Budget
     const limit = parseInt(localStorage.getItem('budgetLimit')) || 0;
     const bar = document.getElementById('budgetBar');
     const labelPersen = document.getElementById('labelPersen');
@@ -100,24 +121,22 @@ function updateSummary(data) {
 
     if (limit > 0) {
         const persen = Math.min((keluar / limit) * 100, 100);
-        bar.style.width = persen + '%';
-        labelPersen.innerText = Math.round(persen) + '% Terpakai';
-        labelSisa.innerText = `Sisa: ${format(limit - keluar)}`;
+        if (bar) bar.style.width = persen + '%';
+        if (labelPersen) labelPersen.innerText = Math.round(persen) + '% Terpakai';
+        if (labelSisa) labelSisa.innerText = `Sisa: ${format(limit - keluar)}`;
 
-        // Ganti warna bar (Hijau -> Kuning -> Merah)
-        bar.className = "progress-bar progress-bar-striped progress-bar-animated ";
-        if (persen < 60) bar.classList.add("bg-success");
-        else if (persen < 90) bar.classList.add("bg-warning");
-        else bar.classList.add("bg-danger");
-    } else {
-        bar.style.width = '0%';
-        labelPersen.innerText = 'Limit Belum Diatur';
-        labelSisa.innerText = '-';
+        if (bar) {
+            bar.className = "progress-bar progress-bar-striped progress-bar-animated ";
+            if (persen < 60) bar.classList.add("bg-success");
+            else if (persen < 90) bar.classList.add("bg-warning");
+            else bar.classList.add("bg-danger");
+        }
     }
 }
 
 function renderTabel(data) {
     const tbody = document.getElementById('tabelData');
+    if (!tbody) return;
     tbody.innerHTML = '';
     data.forEach(item => {
         const tgl = new Date(item.created_at).getDate();
@@ -127,7 +146,7 @@ function renderTabel(data) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td class="ps-3 text-secondary">${tgl}</td>
-            <td>${item.keterangan}</td>
+            <td class="fw-bold">${item.keterangan}</td>
             <td class="${warna} fw-bold">${nominal}</td>
             <td class="text-center">
                 <button class="btn btn-sm text-danger" onclick="hapusData(${item.id})">×</button>
@@ -137,7 +156,25 @@ function renderTabel(data) {
     });
 }
 
-// --- SECURITY & EXPORT ---
+// --- 5. UTILS (SECURITY & EXPORT) ---
+window.hapusData = async function(id) {
+    if (confirm("Hapus data ini, Bro?")) {
+        const { error } = await supabaseClient.from('transaksi_keuangan').delete().eq('id', id);
+        if (!error) ambilDataTransaksi();
+    }
+};
+
+window.setLimit = function() {
+    const limit = document.getElementById('inputLimit').value;
+    localStorage.setItem('budgetLimit', limit);
+    updateSummary(dataTransaksi);
+};
+
+window.toggleMask = function() {
+    isMasked = !isMasked;
+    ambilDataTransaksi();
+};
+
 function startSessionTimer(minutes) {
     let seconds = minutes * 60;
     const timerEl = document.getElementById('sessionTimer');
@@ -150,11 +187,7 @@ function startSessionTimer(minutes) {
     }, 1000);
 }
 
-window.toggleMask = function() {
-    isMasked = !isMasked;
-    ambilDataTransaksi();
-};
-
+// Fungsi Export Excel & PDF (Pastikan Library ada di HTML)
 window.exportExcel = function() {
     const ws = XLSX.utils.json_to_sheet(dataTransaksi.map(i => ({ Tanggal: i.created_at, Ket: i.keterangan, Tipe: i.tipe, Nominal: i.nominal })));
     const wb = XLSX.utils.book_new();
