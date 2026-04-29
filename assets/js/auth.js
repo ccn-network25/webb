@@ -78,6 +78,10 @@ async function checkSession() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // 1. Panggil Satpam di sini, SETELAH seluruh kerangka HTML siap!
+    checkSession(); 
+
+    // 2. Tombol Login
     const btnLogin = document.getElementById('btnLoginGithub');
     if (btnLogin) {
         btnLogin.addEventListener('click', (e) => {
@@ -86,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // 3. Tombol Logout
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) {
         btnLogout.addEventListener('click', logout); 
