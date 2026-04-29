@@ -128,6 +128,37 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="modalEdit" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold text-primary">Edit Transaksi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEdit">
+                    <input type="hidden" id="editId">
+                    <div class="mb-3">
+                        <label class="small text-secondary">Tipe</label>
+                        <select id="editTipe" class="form-select bg-dark text-light border-secondary">
+                            <option value="masuk">Pemasukan (+)</option>
+                            <option value="keluar">Pengeluaran (-)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-secondary">Keterangan</label>
+                        <input type="text" id="editKeterangan" class="form-control bg-dark text-light border-secondary" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-secondary">Nominal</label>
+                        <input type="number" id="editNominal" class="form-control bg-dark text-light border-secondary" required>
+                    </div>
+                    <button type="button" onclick="window.updateTransaksi()" class="btn btn-primary w-100 fw-bold">Update Data</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
     
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/db.js"></script>
