@@ -5,12 +5,11 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 // Membuka jalur koneksi ke backend
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-// 2. Fungsi Login pakai GitHub
+// 2. Fungsi Login pakai GitHub (Ini yang tadi kemungkinan hilang)
 async function loginWithGithub() {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'github',
         options: {
-            // Arahkan langsung ke dashboard setelah sukses login
             redirectTo: window.location.origin + '/keuangan.html' 
         }
     });
@@ -22,19 +21,14 @@ async function loginWithGithub() {
 
 // 3. Fungsi Logout
 async function logout() {
-    const { error } = await supabaseClient.auth.signOut();
-    if (!error) {
-        window.location.href = 'login.html'; // Tendang balik ke halaman login
-    }
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html'; 
 }
 
 // 4. Fungsi Gatekeeper (Satpam Pengecek Sesi & Whitelist Email)
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const currentPage = window.location.pathname;
-    
-    // GANTI DENGAN EMAIL KAMU SENDIRI
-    const emailAdmin = "isi_dengan_email_github_kamu@gmail.com"; 
 
     // Proteksi jika paksa masuk tanpa login
     if (!session && currentPage.includes('keuangan.html')) {
@@ -46,43 +40,44 @@ async function checkSession() {
         const userEmail = session.user.email;
         
         if (userEmail !== emailAdmin) {
-            // Jika penyusup, HAPUS sesi dan usir SEBELUM data sempat ditarik
+            // Jika penyusup, usir SEBELUM data sempat ditarik
             alert("Akses Ditolak! Sistem mengenali penyusup.");
             await supabaseClient.auth.signOut();
-            window.location.href = 'login.html';
+            
+            if (!currentPage.includes('login.html')) {
+                window.location.href = 'login.html';
+            }
             return; 
         } else {
-            // JIKA EMAIL COCOK, Tampilkan halaman dan SURUH narik data!
+            // JIKA EMAIL COCOK (Admin Asli)
             if (currentPage.includes('keuangan.html')) {
-                document.body.style.display = 'block'; 
-                // Panggil fungsi tarik data secara eksplisit di sini!
+                document.body.style.display = 'block'; // Tampilkan layar dashboard
+                // Tarik data db
                 if (typeof ambilDataTransaksi === "function") {
-                    ambilDataTransaksi();
+                    ambilDataTransaksi(); 
                 }
+            } else if (currentPage.includes('login.html')) {
+                // Kalau admin buka halaman login padahal udah masuk, lempar ke dashboard
+                window.location.href = 'keuangan.html';
             }
         }
     }
-
-    // Redirect jika sudah login malah buka halaman login
-    if (session && currentPage.includes('login.html')) {
-        window.location.href = 'keuangan.html';
-    }
 }
 
-// 5. Sambungkan fungsi ke tombol di HTML saat web dimuat
+// 5. Pasang "Kabel" ke Tombol HTML saat web dimuat
 document.addEventListener("DOMContentLoaded", () => {
     // Tombol Login
     const btnLogin = document.getElementById('btnLoginGithub');
     if (btnLogin) {
         btnLogin.addEventListener('click', (e) => {
-            e.preventDefault(); // Mencegah form reload bawaan HTML
-            loginWithGithub();
+            e.preventDefault(); 
+            loginWithGithub(); // Jalankan fungsi login
         });
     }
 
     // Tombol Logout
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) {
-        btnLogout.addEventListener('click', logout);
+        btnLogout.addEventListener('click', logout); // Jalankan fungsi logout
     }
 });
