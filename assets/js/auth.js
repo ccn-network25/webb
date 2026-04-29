@@ -9,7 +9,6 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 // (MASUKKAN EMAIL GITHUB KAMU DI SINI)
 const emailAdmin = "ccn.start@gmail.com";
 
-// 2. Fungsi Login pakai GitHub (Ini yang tadi kemungkinan hilang)
 async function loginWithGithub() {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'github',
@@ -23,65 +22,72 @@ async function loginWithGithub() {
     }
 }
 
-// 3. Fungsi Logout
 async function logout() {
     await supabaseClient.auth.signOut();
-    window.location.href = 'login.html'; 
+    window.location.href = 'index.html'; // Sekarang logout kembalinya ke index.html
 }
 
-// 4. Fungsi Gatekeeper (Satpam Pengecek Sesi & Whitelist Email)
+// SATPAM ZERO TRUST
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const currentPage = window.location.pathname;
+    
+    // Deteksi apakah user sedang berada di halaman depan (login)
+    const isLoginPage = currentPage === '/' || currentPage.endsWith('index.html');
 
-    // Proteksi jika paksa masuk tanpa login
-    if (!session && currentPage.includes('keuangan.html')) {
-        window.location.href = 'login.html';
+    // 1. JIKA BELUM LOGIN
+    if (!session) {
+        if (!isLoginPage) {
+            // Kalau nyasar ke halaman dalam, tendang ke depan
+            window.location.href = 'index.html'; 
+        } else {
+            // Kalau di depan, silakan tampilkan form loginnya
+            document.body.style.display = 'block'; 
+        }
         return;
-    } 
+    }
 
+    // 2. JIKA SUDAH LOGIN
     if (session) {
         const userEmail = session.user.email;
         
-        if (userEmail !== emailAdmin) {
-            // Jika penyusup, usir SEBELUM data sempat ditarik
-            alert("Akses Ditolak! Sistem mengenali penyusup.");
+        // Pengecekan Whitelist Admin
+        if (userEmail.toLowerCase().trim() !== emailAdmin.toLowerCase().trim()) {
+            alert("Akses Ditolak! Anda bukan admin.");
             await supabaseClient.auth.signOut();
             
-            if (!currentPage.includes('login.html')) {
-                window.location.href = 'login.html';
-            }
+            if (!isLoginPage) window.location.href = 'index.html';
+            else document.body.style.display = 'block'; 
+            
             return; 
         } else {
-            // JIKA EMAIL COCOK (Admin Asli)
-            if (currentPage.includes('keuangan.html')) {
-                document.body.style.display = 'block'; // Tampilkan layar dashboard
-                // Tarik data db
+            // JIKA ADMIN ASLI
+            if (isLoginPage) {
+                // Udah login kok di halaman login? Otomatis lempar ke dalam!
+                window.location.href = 'keuangan.html'; 
+            } else {
+                // Berada di halaman dalam yang benar, tampilkan halamannya
+                document.body.style.display = 'block';
+                // Jika halaman punya fungsi tarik data db, jalankan
                 if (typeof ambilDataTransaksi === "function") {
-                    ambilDataTransaksi(); 
+                    ambilDataTransaksi();
                 }
-            } else if (currentPage.includes('login.html')) {
-                // Kalau admin buka halaman login padahal udah masuk, lempar ke dashboard
-                window.location.href = 'keuangan.html';
             }
         }
     }
 }
 
-// 5. Pasang "Kabel" ke Tombol HTML saat web dimuat
 document.addEventListener("DOMContentLoaded", () => {
-    // Tombol Login
     const btnLogin = document.getElementById('btnLoginGithub');
     if (btnLogin) {
         btnLogin.addEventListener('click', (e) => {
             e.preventDefault(); 
-            loginWithGithub(); // Jalankan fungsi login
+            loginWithGithub(); 
         });
     }
 
-    // Tombol Logout
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) {
-        btnLogout.addEventListener('click', logout); // Jalankan fungsi logout
+        btnLogout.addEventListener('click', logout); 
     }
 });
