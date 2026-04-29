@@ -32,29 +32,26 @@ async function logout() {
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const currentPage = window.location.pathname;
-
-    // --- FITUR WHITELIST AKUN (HANYA KAMU YANG BISA MASUK) ---
-    // Ganti email di bawah ini dengan email yang kamu pakai di akun GitHub kamu!
-    const emailAdmin = "ccn.start@gmail.com"; 
+    const emailAdmin = "email_github_kamu@gmail.com"; // Pastikan email ini benar
 
     if (session) {
         const userEmail = session.user.email;
         
-        // Cek apakah email yang login cocok dengan email admin
         if (userEmail !== emailAdmin) {
-            alert("Akses Ditolak! Sistem mengenali penyusup. Anda akan dikeluarkan otomatis.");
-            await supabaseClient.auth.signOut(); // Paksa logout
-            window.location.href = 'login.html'; // Tendang ke luar
-            return; // Hentikan proses pembacaan web
+            alert("Akses Ditolak! Sistem mengenali penyusup.");
+            await supabaseClient.auth.signOut();
+            window.location.href = 'login.html';
+            return;
+        } else {
+            // JIKA EMAIL COCOK, barulah kita munculkan halaman body-nya
+            document.body.style.display = 'block';
         }
     }
-    // ---------------------------------------------------------
 
-    // Kalau belum login tapi maksa masuk halaman keuangan
+    // Proteksi jika paksa masuk tanpa login
     if (!session && currentPage.includes('keuangan.html')) {
         window.location.href = 'login.html';
     } 
-    // Kalau sudah login (dan emailnya benar) tapi iseng buka halaman login
     else if (session && currentPage.includes('login.html')) {
         window.location.href = 'keuangan.html';
     }
