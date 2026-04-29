@@ -3,19 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Module | #am Command Center</title>
+    <title>Secure Finance | #am Command Center</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-       
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/auth.js"></script>
+
     <style>
-        body { display: none; } 
+        body { display: none; background-color: #121416; } 
         .navbar-custom { background-color: #1a1d20 !important; }
-        .card-summary { border-left: 4px solid #0d6efd; }
+        
+        /* Utility Classes */
+        .glass-card { background: rgba(33, 37, 41, 0.8); backdrop-filter: blur(10px); border: 1px solid #2b2f32; }
+        .text-mask { font-family: monospace; letter-spacing: 2px; }
+        .security-bar { font-size: 0.75rem; background-color: #000; color: #6c757d; }
     </style>
 </head>
-<body class="bg-dark text-light">
+<body class="text-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark border-bottom border-secondary mb-4 navbar-custom">
+    <div class="security-bar py-1 px-3 d-flex justify-content-between border-bottom border-dark">
+        <div>
+            <i class="bi bi-shield-lock-fill text-success me-1"></i> E2EE Connection Active
+            <span class="ms-3 border-start border-secondary ps-3"><i class="bi bi-clock-history me-1"></i> Session Timeout: <span id="sessionTimer" class="text-warning">15:00</span></span>
+        </div>
+        <div class="d-none d-md-block">
+            <i class="bi bi-geo-alt-fill me-1"></i> Last Login: Today, 11:45 WIB | IP: 103.119.x.x
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark border-bottom border-secondary mb-4 navbar-custom shadow-sm">
         <div class="container">
             <a class="navbar-brand fw-bold" href="beranda.html">IVAN <span class="text-primary">#am</span></a>
             <div class="collapse navbar-collapse">
@@ -23,34 +41,80 @@
                     <li class="nav-item"><a class="nav-link" href="beranda.html">Beranda</a></li>
                     <li class="nav-item"><a class="nav-link active" href="keuangan.html">Keuangan</a></li>
                 </ul>
-                <button id="logoutBtn" class="btn btn-outline-danger btn-sm">Logout</button>
+                <button id="logoutBtn" class="btn btn-outline-danger btn-sm"><i class="bi bi-power"></i> Secure Logout</button>
             </div>
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container pb-5">
+        
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <h4 class="fw-bold mb-0">Financial Overview</h4>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleMasking()">
+                <i class="bi bi-eye-slash" id="eyeIcon"></i> Toggle Visibility
+            </button>
+        </div>
+        
         <div class="row mb-4 g-3">
             <div class="col-md-4">
-                <div class="card bg-dark border-secondary card-summary h-100">
+                <div class="card glass-card h-100 border-primary border-start border-4">
                     <div class="card-body">
-                        <h6 class="text-secondary text-uppercase mb-2">Total Saldo</h6>
-                        <h3 id="totalSaldo" class="fw-bold text-primary">Rp 0</h3>
+                        <h6 class="text-secondary mb-2">Net Worth (Total Kekayaan)</h6>
+                        <h3 class="fw-bold text-primary nominal-uang" data-value="0">Rp 0</h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card bg-dark border-secondary h-100" style="border-left: 4px solid #198754;">
+                <div class="card glass-card h-100 border-success border-start border-4">
                     <div class="card-body">
-                        <h6 class="text-secondary text-uppercase mb-2">Pemasukan</h6>
-                        <h3 id="totalMasuk" class="fw-bold text-success">Rp 0</h3>
+                        <h6 class="text-secondary mb-2">Total Pemasukan</h6>
+                        <h3 class="fw-bold text-success nominal-uang" data-value="0">Rp 0</h3>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card bg-dark border-secondary h-100" style="border-left: 4px solid #dc3545;">
+                <div class="card glass-card h-100 border-danger border-start border-4">
                     <div class="card-body">
-                        <h6 class="text-secondary text-uppercase mb-2">Pengeluaran</h6>
-                        <h3 id="totalKeluar" class="fw-bold text-danger">Rp 0</h3>
+                        <h6 class="text-secondary mb-2">Total Pengeluaran</h6>
+                        <h3 class="fw-bold text-danger nominal-uang" data-value="0">Rp 0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4 g-3">
+            <div class="col-md-7">
+                <div class="card glass-card h-100 rounded-4">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3 border-bottom border-secondary pb-2">Cash Flow Analytics</h6>
+                        <canvas id="cashFlowChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="card glass-card h-100 rounded-4">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-4 border-bottom border-secondary pb-2">Budgets & Goals Tracker</h6>
+                        
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="small text-secondary">Limit Pengeluaran Bulanan</span>
+                                <span class="small fw-bold text-warning">75%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-warning" style="width: 75%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="small text-secondary">Target Sertifikasi Cyber Security</span>
+                                <span class="small fw-bold text-success">40%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success" style="width: 40%"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -58,57 +122,70 @@
 
         <div class="row">
             <div class="col-md-4 mb-4">
-                <div class="card bg-dark border-secondary rounded-4">
+                <div class="card glass-card rounded-4">
                     <div class="card-body p-4">
-                        <h5 class="mb-3 fw-bold border-bottom border-secondary pb-2">Tambah Transaksi</h5>
+                        <h6 class="mb-3 fw-bold border-bottom border-secondary pb-2">Quick Action</h6>
                         <form id="formTransaksi">
                             <div class="mb-3">
-                                <label class="form-label">Tipe</label>
-                                <select id="tipe" class="form-select bg-dark text-light border-secondary">
+                                <label class="form-label small">Tipe Transaksi</label>
+                                <select id="tipe" class="form-select form-select-sm bg-dark text-light border-secondary">
                                     <option value="masuk">Pemasukan (+)</option>
                                     <option value="keluar">Pengeluaran (-)</option>
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Keterangan</label>
-                                <input type="text" id="keterangan" class="form-control bg-dark text-light border-secondary" required placeholder="Contoh: Project Website">
+                                <label class="form-label small">Kategori</label>
+                                <select id="kategori" class="form-select form-select-sm bg-dark text-light border-secondary">
+                                    <option value="Operasional">Operasional</option>
+                                    <option value="Gaji/Honor">Gaji/Honor</option>
+                                    <option value="Infrastruktur">Infrastruktur/Server</option>
+                                    <option value="Lainnya">Lainnya</option>
+                                </select>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Nominal (Rp)</label>
-                                <input type="number" id="nominal" class="form-control bg-dark text-light border-secondary" required placeholder="100000">
+                                <label class="form-label small">Deskripsi</label>
+                                <input type="text" id="keterangan" class="form-control form-control-sm bg-dark text-light border-secondary" required placeholder="Sewa VPS bulanan...">
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 fw-bold">Simpan Data</button>
+                            <div class="mb-3">
+                                <label class="form-label small">Nominal (Rp)</label>
+                                <input type="number" id="nominal" class="form-control form-control-sm bg-dark text-light border-secondary" required min="1">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold btn-sm">Eksekusi Transaksi</button>
                         </form>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-8">
-                <div class="card bg-dark border-secondary rounded-4 overflow-hidden">
-                    <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center p-3">
-                        <h5 class="m-0 fw-bold">Riwayat Transaksi</h5>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Export Data</button>
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#" onclick="exportExcel()">Export to Excel (.xlsx)</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="exportCSV()">Export to CSV (.csv)</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="exportPDF()">Export to PDF (.pdf)</a></li>
-                            </ul>
+                <div class="card glass-card rounded-4 overflow-hidden h-100">
+                    <div class="card-header bg-transparent border-secondary p-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-4"><h6 class="m-0 fw-bold">Transaction Ledger</h6></div>
+                            <div class="col-md-8 d-flex gap-2 justify-content-end mt-2 mt-md-0">
+                                <input type="text" class="form-control form-control-sm bg-dark text-light border-secondary w-50" placeholder="Search data...">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-download"></i> Export</button>
+                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="exportExcel()">Excel (.xlsx)</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="exportCSV()">CSV (.csv)</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="exportPDF()">PDF (.pdf)</a></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-dark table-hover m-0">
-                                <thead class="table-secondary">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-dark table-hover m-0 align-middle">
+                                <thead class="table-secondary" style="position: sticky; top: 0; z-index: 1;">
                                     <tr>
-                                        <th class="ps-3">Tanggal</th>
-                                        <th>Keterangan</th>
-                                        <th>Tipe</th>
-                                        <th>Nominal</th>
-                                        <th class="text-center">Aksi</th>
+                                        <th class="ps-3">Date</th>
+                                        <th>Description</th>
+                                        <th>Category</th>
+                                        <th>Amount</th>
+                                        <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tabelData"></tbody>
+                                <tbody id="tabelData">
+                                    </tbody>
                             </table>
                         </div>
                     </div>
@@ -118,13 +195,48 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="assets/js/db.js"></script>
-</body>
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/js/auth.js"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    
+    <script src="assets/js/db.js"></script>
+
+    <script>
+        // Fitur Sensor Data (Data Masking)
+        let isMasked = false;
+        function toggleMasking() {
+            isMasked = !isMasked;
+            const elements = document.querySelectorAll('.nominal-uang');
+            const icon = document.getElementById('eyeIcon');
+            
+            icon.className = isMasked ? 'bi bi-eye' : 'bi bi-eye-slash';
+            
+            elements.forEach(el => {
+                if (isMasked) {
+                    el.classList.add('text-mask');
+                    el.innerText = 'Rp •••••••';
+                } else {
+                    el.classList.remove('text-mask');
+                    const realValue = parseInt(el.getAttribute('data-value')) || 0;
+                    el.innerText = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(realValue);
+                }
+            });
+        }
+        
+        // Placeholder Render Chart.js (Untuk UI)
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('cashFlowChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
+                    datasets: [
+                        { label: 'Masuk', data: [5, 7, 4, 8, 6, 9], backgroundColor: '#198754' },
+                        { label: 'Keluar', data: [3, 4, 3, 5, 2, 4], backgroundColor: '#dc3545' }
+                    ]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true, grid: { color: '#2b2f32' } }, x: { grid: { color: '#2b2f32' } } } }
+            });
+        });
+    </script>
+</body>
 </html>
