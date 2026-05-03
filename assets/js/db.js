@@ -3,26 +3,22 @@ window.isMasked = false;
 
 // --- 1. INISIALISASI & EVENT ---
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("DB.js: Membuka kunci cache...");
-    
-    // Set Default Tanggal
     const skrg = new Date();
     const fBulan = document.getElementById('filterBulan');
     const fTahun = document.getElementById('filterTahun');
     if (fBulan) fBulan.value = String(skrg.getMonth() + 1).padStart(2, '0');
     if (fTahun) fTahun.value = skrg.getFullYear();
 
-    // Load Budget
     const iLim = document.getElementById('inputLimit');
     if (iLim) iLim.value = localStorage.getItem('budgetLimit') || 0;
 
-    // Pasang Event ke Form Utama
     const form = document.getElementById('formTransaksi');
     if (form) form.addEventListener('submit', window.tambahTransaksi);
 
-    // Tarik Data Pertama Kali
+    // Beri jeda agar auth.js selesai memverifikasi Supabase
     setTimeout(() => { window.ambilDataTransaksi(); }, 500);
 });
+
 
 // --- 2. FUNGSI DATABASE (SUPABASE) ---
 window.ambilDataTransaksi = async function() {
@@ -50,7 +46,7 @@ window.ambilDataTransaksi = async function() {
         window.updateSummary(data);
         window.renderTabel(data);
     } catch (err) {
-        console.error("Error Ambil Data:", err.message);
+        console.error("Gagal Ambil Data:", err.message);
     }
 };
 
@@ -87,6 +83,7 @@ window.updateTransaksi = async function() {
 
         if (error) throw error;
 
+        // Tutup Modal dengan aman
         const modalEl = document.getElementById('modalEdit');
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
@@ -96,7 +93,7 @@ window.updateTransaksi = async function() {
 };
 
 window.hapusData = async function(id) {
-    if (confirm("Yakin hapus transaksi ini, Bro?")) {
+    if (confirm("Yakin mau hapus transaksi ini, Bro?")) {
         try {
             const { error } = await supabaseClient.from('transaksi_keuangan').delete().eq('id', id);
             if (error) throw error;
@@ -104,6 +101,7 @@ window.hapusData = async function(id) {
         } catch (err) { alert("Gagal Hapus: " + err.message); }
     }
 };
+
 
 // --- 3. FUNGSI UI & INTERAKSI ---
 window.bukaModalEdit = function(id) {
@@ -115,7 +113,6 @@ window.bukaModalEdit = function(id) {
         document.getElementById('editNominal').value = item.nominal;
         
         const modalEl = document.getElementById('modalEdit');
-        // Fitur anti-error getOrCreateInstance (Bawaan Bootstrap 5)
         const instansiModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         instansiModal.show();
     }
@@ -132,7 +129,7 @@ window.renderTabel = function(data) {
         const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
         
         const tr = document.createElement('tr');
-        // Disuntikkan langsung agar dikenali HTML
+        // Tanda kutip tunggal pada ${item.id} menjaga agar tidak terjadi error jika tipe data string
         tr.innerHTML = `
             <td class="ps-3 text-secondary">${tgl}</td>
             <td class="fw-bold">${item.keterangan}</td>
@@ -161,15 +158,19 @@ window.updateSummary = function(data) {
 
     const limit = parseInt(localStorage.getItem('budgetLimit')) || 0;
     const bar = document.getElementById('budgetBar');
+    const labelP = document.getElementById('labelPersen');
+    const labelS = document.getElementById('labelSisa');
+
     if (limit > 0 && bar) {
         const persen = Math.min((keluar / limit) * 100, 100);
         bar.style.width = persen + '%';
         bar.className = "progress-bar progress-bar-striped progress-bar-animated " + (persen < 60 ? "bg-success" : persen < 90 ? "bg-warning" : "bg-danger");
-        
-        const labelP = document.getElementById('labelPersen');
-        const labelS = document.getElementById('labelSisa');
         if(labelP) labelP.innerText = Math.round(persen) + '%';
         if(labelS) labelS.innerText = `Sisa: ${format(limit - keluar)}`;
+    } else if (bar) {
+        bar.style.width = '0%';
+        if(labelP) labelP.innerText = '0%';
+        if(labelS) labelS.innerText = 'Sisa: Rp 0';
     }
 };
 
@@ -185,6 +186,7 @@ window.toggleMask = function() {
     window.renderTabel(window.dataTransaksi);
 };
 
+
 // --- 4. FUNGSI EXPORT ---
 window.exportExcel = function(e) {
     if(e) e.preventDefault();
@@ -192,7 +194,7 @@ window.exportExcel = function(e) {
     const ws = XLSX.utils.json_to_sheet(window.dataTransaksi.map(i => ({ Tanggal: new Date(i.created_at).toLocaleDateString(), Keterangan: i.keterangan, Tipe: i.tipe.toUpperCase(), Nominal: i.nominal })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Keuangan");
-    XLSX.writeFile(wb, "Laporan_Keuangan_Ivan.xlsx");
+    XLSX.writeFile(wb, "Laporan_Keuangan.xlsx");
 };
 
 window.exportPDF = function(e) {
@@ -203,5 +205,5 @@ window.exportPDF = function(e) {
     doc.text("Laporan Keuangan", 14, 15);
     const rows = window.dataTransaksi.map(i => [new Date(i.created_at).toLocaleDateString(), i.keterangan, i.tipe.toUpperCase(), `Rp ${i.nominal.toLocaleString('id-ID')}`]);
     doc.autoTable({ head: [['Tanggal', 'Keterangan', 'Tipe', 'Nominal']], body: rows, startY: 20 });
-    doc.save("Laporan_Keuangan_Ivan.pdf");
+    doc.save("Laporan_Keuangan.pdf");
 };
