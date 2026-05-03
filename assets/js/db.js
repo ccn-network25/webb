@@ -24,8 +24,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById('formTransaksi');
     if (form) form.addEventListener('submit', window.tambahTransaksi);
 
+    // Event Listener untuk Filter Bulan & Tahun
     if (fBulan) fBulan.addEventListener('change', window.ambilDataTransaksi);
     if (fTahun) fTahun.addEventListener('change', window.ambilDataTransaksi);
+
+    // Event Listener untuk Fitur Sorting Baru
+    const elSort = document.getElementById('sortData');
+    if (elSort) elSort.addEventListener('change', window.sortDataTransaksi);
 
     const btnUpdate = document.getElementById('btnUpdateTransaksi');
     if (btnUpdate) btnUpdate.addEventListener('click', window.updateTransaksi);
@@ -69,13 +74,15 @@ window.ambilDataTransaksi = async function() {
             .eq('user_id', user.id)
             .gte('created_at', start)
             .lte('created_at', end)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false }); // Tarik data default (terbaru)
 
         if (error) throw error;
         
         window.dataTransaksi = data;
         window.updateSummary(data);
-        window.renderTabel(data);
+        
+        // Panggil fungsi sortir sebelum render agar tabel langsung rapi sesuai pilihan dropdown
+        window.sortDataTransaksi(); 
     } catch (err) {
         console.error("Gagal Ambil Data:", err.message);
     }
@@ -88,13 +95,11 @@ window.tambahTransaksi = async function(e) {
     const keterangan = document.getElementById('keterangan').value;
     const nominal = document.getElementById('nominal').value;
 
-    // Paksa format waktu ke jam 12 siang supaya aman dari pergeseran zona waktu
     const createdAt = `${tanggalInput}T12:00:00.000Z`;
 
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
         
-        // PUSH KE SUPABASE DENGAN TANGGAL MANUAL
         const { error } = await supabaseClient
             .from('transaksi_keuangan')
             .insert([{ 
@@ -108,7 +113,6 @@ window.tambahTransaksi = async function(e) {
         if (error) throw error;
         
         document.getElementById('formTransaksi').reset();
-        // Setel ulang input tanggal ke hari ini setelah di-reset
         const skrg = new Date();
         document.getElementById('tanggal').value = new Date(skrg.getTime() - (skrg.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         
@@ -157,7 +161,31 @@ window.hapusData = async function(id) {
 };
 
 
-// --- 3. FUNGSI UI & INTERAKSI ---
+// --- 3. FUNGSI UI, SORTING & INTERAKSI ---
+window.sortDataTransaksi = function() {
+    const sortBy = document.getElementById('sortData').value;
+    
+    // Copy array agar tidak merusak urutan asli saat difilter ulang
+    let sortedData = [...window.dataTransaksi];
+
+    if (sortBy === 'terbaru') {
+        sortedData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (sortBy === 'terlama') {
+        sortedData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } else if (sortBy === 'az') {
+        sortedData.sort((a, b) => a.keterangan.localeCompare(b.keterangan));
+    } else if (sortBy === 'za') {
+        sortedData.sort((a, b) => b.keterangan.localeCompare(a.keterangan));
+    } else if (sortBy === 'nomTinggi') {
+        sortedData.sort((a, b) => b.nominal - a.nominal);
+    } else if (sortBy === 'nomRendah') {
+        sortedData.sort((a, b) => a.nominal - b.nominal);
+    }
+
+    // Render tabel menggunakan data yang sudah di-sort
+    window.renderTabel(sortedData);
+};
+
 window.bukaModalEdit = function(id) {
     const item = window.dataTransaksi.find(i => i.id == id);
     if (item) {
@@ -166,7 +194,6 @@ window.bukaModalEdit = function(id) {
         document.getElementById('editKeterangan').value = item.keterangan;
         document.getElementById('editNominal').value = item.nominal;
         
-        // Memasukkan tanggal lama ke dalam form edit
         const tgl = new Date(item.created_at).toISOString().split('T')[0];
         document.getElementById('editTanggal').value = tgl;
         
@@ -239,8 +266,9 @@ window.setLimit = function() {
 
 window.toggleMask = function() {
     window.isMasked = !window.isMasked;
+    // Panggil sortDataTransaksi, bukan renderTabel agar sorting tetap terjaga saat disensor
     window.updateSummary(window.dataTransaksi);
-    window.renderTabel(window.dataTransaksi);
+    window.sortDataTransaksi(); 
 };
 
 
