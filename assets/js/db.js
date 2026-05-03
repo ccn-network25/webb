@@ -2,32 +2,28 @@ let dataTransaksi = [];
 let isMasked = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("DB.js: Sistem Siap. Menyiapkan Fungsi Global...");
+    console.log("DB.js: Inisialisasi Sistem Pamungkas...");
 
-    // 1. Set Filter Waktu Default
+    // 1. Setup Nilai Default UI
     const skrg = new Date();
-    document.getElementById('filterBulan').value = String(skrg.getMonth() + 1).padStart(2, '0');
-    document.getElementById('filterTahun').value = skrg.getFullYear();
+    const elBulan = document.getElementById('filterBulan');
+    const elTahun = document.getElementById('filterTahun');
+    if (elBulan) elBulan.value = String(skrg.getMonth() + 1).padStart(2, '0');
+    if (elTahun) elTahun.value = skrg.getFullYear();
     
-    // 2. Load Budget Limit dari Local Storage
-    const savedLimit = localStorage.getItem('budgetLimit') || 0;
-    document.getElementById('inputLimit').value = savedLimit;
+    const elLimit = document.getElementById('inputLimit');
+    if (elLimit) elLimit.value = localStorage.getItem('budgetLimit') || 0;
 
-    // 3. Pasang Event Listener Element Statis
+    // 2. Pasang Event Listener (Anti-Bentrok)
     const form = document.getElementById('formTransaksi');
     if (form) form.addEventListener('submit', window.tambahTransaksi);
 
     const btnMask = document.getElementById('btnToggleMask');
     if (btnMask) btnMask.addEventListener('click', window.toggleMask);
 
-    const inputLim = document.getElementById('inputLimit');
-    if (inputLim) inputLim.addEventListener('input', window.setLimit);
-
-    const filterBulan = document.getElementById('filterBulan');
-    if (filterBulan) filterBulan.addEventListener('change', window.ambilDataTransaksi);
-
-    const filterTahun = document.getElementById('filterTahun');
-    if (filterTahun) filterTahun.addEventListener('change', window.ambilDataTransaksi);
+    if (elLimit) elLimit.addEventListener('input', window.setLimit);
+    if (elBulan) elBulan.addEventListener('change', window.ambilDataTransaksi);
+    if (elTahun) elTahun.addEventListener('change', window.ambilDataTransaksi);
 
     const btnExportExcel = document.getElementById('btnExportExcel');
     if (btnExportExcel) btnExportExcel.addEventListener('click', window.exportExcel);
@@ -35,14 +31,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnExportPDF = document.getElementById('btnExportPDF');
     if (btnExportPDF) btnExportPDF.addEventListener('click', window.exportPDF);
 
+    // Pastikan tombol modal update bersih dari atribut lama
     const btnUpdate = document.getElementById('btnUpdateTransaksi');
-    if (btnUpdate) btnUpdate.addEventListener('click', window.updateTransaksi);
+    if (btnUpdate) {
+        btnUpdate.removeAttribute('onclick'); 
+        btnUpdate.addEventListener('click', window.updateTransaksi);
+    }
 
-    // Load Data Awal
+    // 3. Tarik Data Awal
     setTimeout(() => { window.ambilDataTransaksi(); }, 500);
 });
 
-// --- CORE FUNCTIONS SUPABASE ---
+
+// --- FUNGSI CORE SUPABASE --- //
 
 window.ambilDataTransaksi = async function() {
     try {
@@ -106,13 +107,24 @@ window.updateTransaksi = async function() {
 
         if (error) throw error;
 
-        // Tutup Modal
         const modalEl = document.getElementById('modalEdit');
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
 
         window.ambilDataTransaksi();
     } catch (err) { alert("Gagal Update: " + err.message); }
+};
+
+// Fungsi ini sekarang menerima objek utuh, lebih aman!
+window.bukaModalEdit = function(item) {
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editTipe').value = item.tipe;
+    document.getElementById('editKeterangan').value = item.keterangan;
+    document.getElementById('editNominal').value = item.nominal;
+    
+    const modalEl = document.getElementById('modalEdit');
+    const instansiModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    instansiModal.show();
 };
 
 window.hapusData = async function(id) {
@@ -125,46 +137,62 @@ window.hapusData = async function(id) {
     }
 };
 
-window.bukaModalEdit = function(id) {
-    const item = dataTransaksi.find(i => i.id == id);
-    if (item) {
-        document.getElementById('editId').value = item.id;
-        document.getElementById('editTipe').value = item.tipe;
-        document.getElementById('editKeterangan').value = item.keterangan;
-        document.getElementById('editNominal').value = item.nominal;
-        
-        const modalEl = document.getElementById('modalEdit');
-        // Fitur anti-freeze Bootstrap
-        const instansiModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        instansiModal.show();
-    }
-};
 
-// --- UI LOGIC ---
+// --- UI LOGIC (SENJATA PAMUNGKAS) --- //
 
 window.renderTabel = function(data) {
     const tbody = document.getElementById('tabelData');
     if (!tbody) return;
-    tbody.innerHTML = '';
+    tbody.innerHTML = ''; 
     
     data.forEach(item => {
-        const tgl = new Date(item.created_at).getDate();
-        const nominalStr = isMasked ? "Rp •••" : `Rp ${item.nominal.toLocaleString('id-ID')}`;
-        const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
-        
+        // Buat baris baru
         const tr = document.createElement('tr');
-        // Menggunakan onclick eksplisit dengan pemanggilan object window
-        tr.innerHTML = `
-            <td class="ps-3 text-secondary">${tgl}</td>
-            <td class="fw-bold">${item.keterangan}</td>
-            <td class="${warna} fw-bold">${nominalStr}</td>
-            <td class="text-center">
-                <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="window.bukaModalEdit('${item.id}')">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="window.hapusData('${item.id}')">Hapus</button>
-                </div>
-            </td>
-        `;
+        
+        // 1. Kolom Tanggal
+        const tdTgl = document.createElement('td');
+        tdTgl.className = 'ps-3 text-secondary';
+        tdTgl.innerText = new Date(item.created_at).getDate();
+        tr.appendChild(tdTgl);
+
+        // 2. Kolom Keterangan
+        const tdKet = document.createElement('td');
+        tdKet.className = 'fw-bold';
+        tdKet.innerText = item.keterangan;
+        tr.appendChild(tdKet);
+
+        // 3. Kolom Nominal
+        const tdNominal = document.createElement('td');
+        tdNominal.className = item.tipe === 'masuk' ? 'text-success fw-bold' : 'text-danger fw-bold';
+        tdNominal.innerText = isMasked ? "Rp •••" : `Rp ${item.nominal.toLocaleString('id-ID')}`;
+        tr.appendChild(tdNominal);
+
+        // 4. Kolom Aksi (Tombol diciptakan via JS)
+        const tdAksi = document.createElement('td');
+        tdAksi.className = 'text-center';
+        
+        const divGroup = document.createElement('div');
+        divGroup.className = 'btn-group';
+
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'btn btn-sm btn-outline-primary py-0 px-2';
+        btnEdit.innerText = 'Edit';
+        // Fungsi disuntikkan langsung tanpa teks HTML
+        btnEdit.addEventListener('click', () => { window.bukaModalEdit(item); });
+
+        const btnHapus = document.createElement('button');
+        btnHapus.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+        btnHapus.innerText = 'Hapus';
+        // Fungsi disuntikkan langsung tanpa teks HTML
+        btnHapus.addEventListener('click', () => { window.hapusData(item.id); });
+
+        // Susun elemennya
+        divGroup.appendChild(btnEdit);
+        divGroup.appendChild(btnHapus);
+        tdAksi.appendChild(divGroup);
+        tr.appendChild(tdAksi);
+
+        // Masukkan baris ke dalam tabel
         tbody.appendChild(tr);
     });
 };
@@ -209,7 +237,7 @@ window.toggleMask = function() {
     window.renderTabel(dataTransaksi);
 };
 
-// --- EXPORT LOGIC ---
+// --- EXPORT LOGIC --- //
 
 window.exportExcel = function(e) {
     if(e) e.preventDefault();
