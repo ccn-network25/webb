@@ -47,7 +47,7 @@
                 <div class="card bg-dark card-finance p-3 h-100">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="text-secondary small m-0">LIMIT PENGELUARAN</h6>
-                        <input type="number" id="inputLimit" class="form-control form-control-sm bg-transparent text-light border-secondary w-25" onchange="window.setLimit()">
+                        <input type="number" id="inputLimit" class="form-control form-control-sm bg-transparent text-light border-secondary w-25">
                     </div>
                     <div class="progress" style="height: 12px;">
                         <div id="budgetBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
@@ -61,10 +61,15 @@
         </div>
 
         <div class="row g-4">
+            <!-- Form Input Data -->
             <div class="col-lg-4">
                 <div class="card bg-dark card-finance p-4">
                     <h5 class="fw-bold mb-3 border-bottom border-secondary pb-2">Input Data</h5>
                     <form id="formTransaksi">
+                        <div class="mb-3">
+                            <label class="small text-secondary">Tanggal Transaksi</label>
+                            <input type="date" id="tanggal" class="form-control bg-dark text-light border-secondary" required>
+                        </div>
                         <div class="mb-3">
                             <label class="small text-secondary">Tipe</label>
                             <select id="tipe" class="form-select bg-dark text-light border-secondary">
@@ -80,10 +85,6 @@
                             <label class="small text-secondary">Nominal</label>
                             <input type="number" id="nominal" class="form-control bg-dark text-light border-secondary" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="small text-secondary">Tanggal Transaksi</label>
-                            <input type="date" id="tanggal" class="form-control bg-dark text-light border-secondary" required>
-                        </div>
                         <button type="submit" class="btn btn-primary w-100 fw-bold">Simpan</button>
                     </form>
                 </div>
@@ -97,19 +98,19 @@
                                 <h5 class="m-0 fw-bold">Ledger</h5>
                             </div>
                             <div class="col-md-8 d-flex gap-2">
-                                <select id="filterBulan" class="form-select form-select-sm bg-dark text-light border-secondary" onchange="window.ambilDataTransaksi()">
+                                <select id="filterBulan" class="form-select form-select-sm bg-dark text-light border-secondary">
                                     <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
                                     <option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option>
                                     <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
                                     <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
                                 </select>
-                                <select id="filterTahun" class="form-select form-select-sm bg-dark text-light border-secondary" onchange="window.ambilDataTransaksi()">
+                                <select id="filterTahun" class="form-select form-select-sm bg-dark text-light border-secondary">
                                     <option value="2025">2025</option><option value="2026">2026</option>
                                 </select>
                                 <button class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Export</button>
                                 <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="#" onclick="window.exportExcel(event)">Excel</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="window.exportPDF(event)">PDF</a></li>
+                                    <li><a class="dropdown-item" href="#" id="btnExportExcel">Excel</a></li>
+                                    <li><a class="dropdown-item" href="#" id="btnExportPDF">PDF</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -144,6 +145,10 @@
                     <form id="formEdit">
                         <input type="hidden" id="editId">
                         <div class="mb-3">
+                            <label class="small text-secondary">Tanggal Transaksi</label>
+                            <input type="date" id="editTanggal" class="form-control bg-dark text-light border-secondary" required>
+                        </div>
+                        <div class="mb-3">
                             <label class="small text-secondary">Tipe</label>
                             <select id="editTipe" class="form-select bg-dark text-light border-secondary">
                                 <option value="masuk">Pemasukan (+)</option>
@@ -158,11 +163,7 @@
                             <label class="small text-secondary">Nominal</label>
                             <input type="number" id="editNominal" class="form-control bg-dark text-light border-secondary" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="small text-secondary">Tanggal Transaksi</label>
-                            <input type="date" id="editTanggal" class="form-control bg-dark text-light border-secondary" required>
-                        </div>
-                        <button type="button" onclick="window.updateTransaksi()" class="btn btn-primary w-100 fw-bold">Update Data</button>
+                        <button type="button" id="btnUpdateTransaksi" class="btn btn-primary w-100 fw-bold">Update Data</button>
                     </form>
                 </div>
             </div>
@@ -177,7 +178,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
-    <!-- Mencegah Cache dengan ?v=final -->
-    <script src="assets/js/db.js?v=aman"></script>
+    <!-- Mencegah Cache dengan ?v=tglUpdate1 -->
+    <script src="assets/js/db.js?v=tglUpdate1"></script>
 </body>
 </html>
