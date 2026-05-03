@@ -1,294 +1,136 @@
-window.dataTransaksi = [];
-window.isMasked = false;
+// Ganti nilainya dengan yang kamu copy dari Supabase
+const supabaseUrl = 'https://rlycxvfwipwrkgmsvgre.supabase.co'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJseWN4dmZ3aXB3cmtnbXN2Z3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MzY0MzUsImV4cCI6MjA5MzAxMjQzNX0.TUazqPjJDUdPT_vyAGF6B9w4p9OnMaCd3emGxUqsAoM'; // Paste Anon Key kamu di sini
 
-// --- 1. INISIALISASI & EVENT ---
-document.addEventListener("DOMContentLoaded", () => {
-    const skrg = new Date();
+// Membuka jalur koneksi ke backend
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+// --- WHITELIST EMAIL ---
+const emailAdmin = "ccn.start@gmail.com";
+
+async function loginWithGithub() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+            redirectTo: window.location.origin + '/beranda.html' 
+        }
+    });
+    if (error) alert("Gagal login Bro: " + error.message);
+}
+
+async function logout() {
+    await supabaseClient.auth.signOut();
+    window.location.href = 'index.html'; 
+}
+
+async function checkSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const currentPath = window.location.pathname;
     
-    // Set default tanggal input form ke hari ini secara lokal
-    const tglLokal = new Date(skrg.getTime() - (skrg.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-    const elTanggal = document.getElementById('tanggal');
-    if (elTanggal) elTanggal.value = tglLokal;
+    const isLoginPage = currentPath === '/' || currentPath.endsWith('index.html');
 
-    const fBulan = document.getElementById('filterBulan');
-    const fTahun = document.getElementById('filterTahun');
-    if (fBulan) fBulan.value = String(skrg.getMonth() + 1).padStart(2, '0');
-    if (fTahun) fTahun.value = skrg.getFullYear();
-
-    const iLim = document.getElementById('inputLimit');
-    if (iLim) {
-        iLim.value = localStorage.getItem('budgetLimit') || 0;
-        iLim.addEventListener('input', window.setLimit);
+    if (!session) {
+        if (!isLoginPage) {
+            window.location.href = 'index.html'; 
+        } else {
+            document.body.style.display = 'block'; 
+        }
+        return;
     }
 
-    const form = document.getElementById('formTransaksi');
-    if (form) form.addEventListener('submit', window.tambahTransaksi);
+    if (session) {
+        const userEmail = session.user.email;
+        
+        if (userEmail.toLowerCase().trim() !== emailAdmin.toLowerCase().trim()) {
+            if (!isLoginPage) {
+                alert("Akses Ditolak! Anda bukan admin.");
+            }
+            await supabaseClient.auth.signOut();
+            
+            if (!isLoginPage) {
+                window.location.href = 'index.html';
+            } else {
+                document.body.style.display = 'block';
+            }
+            return; 
+        } 
 
-    // Event Listener untuk Filter Bulan & Tahun
-    if (fBulan) fBulan.addEventListener('change', window.ambilDataTransaksi);
-    if (fTahun) fTahun.addEventListener('change', window.ambilDataTransaksi);
+        if (isLoginPage) {
+            window.location.href = 'beranda.html';
+        } else {
+            document.body.style.display = 'block';
+            if (typeof ambilDataTransaksi === "function" && currentPath.includes('keuangan.html')) {
+                ambilDataTransaksi();
+            }
+        }
+    }
+}
 
-    // Event Listener untuk Fitur Sorting Baru
-    const elSort = document.getElementById('sortData');
-    if (elSort) elSort.addEventListener('change', window.sortDataTransaksi);
+// ==========================================
+// --- LOGIKA KEAMANAN: IDLE TIMER SESI ---
+// ==========================================
+let waktuSisa = 15 * 60; // 15 menit dikonversi jadi 900 detik
 
-    const btnUpdate = document.getElementById('btnUpdateTransaksi');
-    if (btnUpdate) btnUpdate.addEventListener('click', window.updateTransaksi);
+function mulaiTimerSesi() {
+    // Fungsi berjalan setiap 1 detik (1000 milidetik)
+    setInterval(() => {
+        const display = document.getElementById('sessionTimer');
+        if (!display) return; // Hanya jalan kalau ada tulisan "Sesi: 15:00" di layar
 
-    const btnExportExcel = document.getElementById('btnExportExcel');
-    if (btnExportExcel) btnExportExcel.addEventListener('click', window.exportExcel);
+        waktuSisa--; // Kurangi 1 detik
+        
+        // Kalkulasi sisa menit dan detik
+        let m = Math.floor(waktuSisa / 60);
+        let s = waktuSisa % 60;
+        
+        // Tampilkan ke layar dengan format 00:00
+        display.innerText = `Sesi: ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        
+        // Ubah warna jadi merah kalau sisa waktu tinggal 1 menit (60 detik)
+        if (waktuSisa <= 60) {
+            display.className = "small text-danger fw-bold";
+        } else {
+            display.className = "small text-warning fw-bold";
+        }
 
-    const btnExportPDF = document.getElementById('btnExportPDF');
-    if (btnExportPDF) btnExportPDF.addEventListener('click', window.exportPDF);
+        // Kalau waktu habis
+        if (waktuSisa <= 0) {
+            waktuSisa = 9999; // Set ke angka tinggi biar alert gak muncul berkali-kali
+            alert("Waktu sesi habis karena tidak ada aktivitas, Bro! Sistem melakukan auto-logout demi keamanan.");
+            logout();
+        }
+    }, 1000);
+}
 
-    // Event Delegation untuk tombol di dalam tabel
-    const tbody = document.getElementById('tabelData');
-    if (tbody) {
-        tbody.addEventListener('click', function(e) {
-            const btnEdit = e.target.closest('.btn-edit');
-            const btnHapus = e.target.closest('.btn-hapus');
-            if (btnEdit) window.bukaModalEdit(btnEdit.getAttribute('data-id'));
-            if (btnHapus) window.hapusData(btnHapus.getAttribute('data-id'));
+// Fungsi ringan untuk mengembalikan waktu ke 15 menit
+function resetWaktuSesi() {
+    waktuSisa = 15 * 60;
+}
+// ==========================================
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    checkSession(); 
+
+    // --- ALAT SADAP TOMBOL LOGIN ---
+    const btnLogin = document.getElementById('btnLoginGithub');
+    if (btnLogin) {
+        console.log("STATUS: Tombol login berhasil dideteksi oleh JavaScript!"); 
+        btnLogin.addEventListener('click', (e) => {
+            e.preventDefault(); 
+            console.log("STATUS: Tombol diklik! Menjalankan perintah login..."); 
+            loginWithGithub(); 
         });
     }
+    // ---------------------------------
 
-    setTimeout(() => { window.ambilDataTransaksi(); }, 500);
+    const btnLogout = document.getElementById('logoutBtn');
+    if (btnLogout) btnLogout.addEventListener('click', logout);
+    
+    // --- JALANKAN TIMER ---
+    mulaiTimerSesi();
+    
+    // Reset timer setiap kali ada klik mouse atau ketikan di keyboard
+    window.addEventListener('click', resetWaktuSesi);
+    window.addEventListener('keypress', resetWaktuSesi);
 });
-
-
-// --- 2. FUNGSI DATABASE (SUPABASE) ---
-window.ambilDataTransaksi = async function() {
-    try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return;
-
-        const bulan = document.getElementById('filterBulan').value;
-        const tahun = document.getElementById('filterTahun').value;
-        const start = `${tahun}-${bulan}-01T00:00:00.000Z`;
-        const lastDay = new Date(tahun, bulan, 0).getDate();
-        const end = `${tahun}-${bulan}-${lastDay}T23:59:59.999Z`;
-
-        const { data, error } = await supabaseClient
-            .from('transaksi_keuangan')
-            .select('*')
-            .eq('user_id', user.id)
-            .gte('created_at', start)
-            .lte('created_at', end)
-            .order('created_at', { ascending: false }); // Tarik data default (terbaru)
-
-        if (error) throw error;
-        
-        window.dataTransaksi = data;
-        window.updateSummary(data);
-        
-        // Panggil fungsi sortir sebelum render agar tabel langsung rapi sesuai pilihan dropdown
-        window.sortDataTransaksi(); 
-    } catch (err) {
-        console.error("Gagal Ambil Data:", err.message);
-    }
-};
-
-window.tambahTransaksi = async function(e) {
-    if(e) e.preventDefault();
-    const tanggalInput = document.getElementById('tanggal').value;
-    const tipe = document.getElementById('tipe').value;
-    const keterangan = document.getElementById('keterangan').value;
-    const nominal = document.getElementById('nominal').value;
-
-    const createdAt = `${tanggalInput}T12:00:00.000Z`;
-
-    try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        
-        const { error } = await supabaseClient
-            .from('transaksi_keuangan')
-            .insert([{ 
-                user_id: user.id, 
-                tipe: tipe, 
-                keterangan: keterangan, 
-                nominal: parseInt(nominal),
-                created_at: createdAt
-            }]);
-
-        if (error) throw error;
-        
-        document.getElementById('formTransaksi').reset();
-        const skrg = new Date();
-        document.getElementById('tanggal').value = new Date(skrg.getTime() - (skrg.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        
-        window.ambilDataTransaksi();
-    } catch (err) { alert("Gagal Simpan: " + err.message); }
-};
-
-window.updateTransaksi = async function() {
-    const id = document.getElementById('editId').value;
-    const tanggalInput = document.getElementById('editTanggal').value;
-    const tipe = document.getElementById('editTipe').value;
-    const keterangan = document.getElementById('editKeterangan').value;
-    const nominal = document.getElementById('editNominal').value;
-
-    const createdAt = `${tanggalInput}T12:00:00.000Z`;
-
-    try {
-        const { error } = await supabaseClient
-            .from('transaksi_keuangan')
-            .update({ 
-                tipe: tipe, 
-                keterangan: keterangan, 
-                nominal: parseInt(nominal),
-                created_at: createdAt
-            })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        const modalEl = document.getElementById('modalEdit');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-        if (modalInstance) modalInstance.hide();
-
-        window.ambilDataTransaksi();
-    } catch (err) { alert("Gagal Update: " + err.message); }
-};
-
-window.hapusData = async function(id) {
-    if (confirm("Yakin mau hapus transaksi ini, Bro?")) {
-        try {
-            const { error } = await supabaseClient.from('transaksi_keuangan').delete().eq('id', id);
-            if (error) throw error;
-            window.ambilDataTransaksi();
-        } catch (err) { alert("Gagal Hapus: " + err.message); }
-    }
-};
-
-
-// --- 3. FUNGSI UI, SORTING & INTERAKSI ---
-window.sortDataTransaksi = function() {
-    const sortBy = document.getElementById('sortData').value;
-    
-    // Copy array agar tidak merusak urutan asli saat difilter ulang
-    let sortedData = [...window.dataTransaksi];
-
-    if (sortBy === 'terbaru') {
-        sortedData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    } else if (sortBy === 'terlama') {
-        sortedData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    } else if (sortBy === 'az') {
-        sortedData.sort((a, b) => a.keterangan.localeCompare(b.keterangan));
-    } else if (sortBy === 'za') {
-        sortedData.sort((a, b) => b.keterangan.localeCompare(a.keterangan));
-    } else if (sortBy === 'nomTinggi') {
-        sortedData.sort((a, b) => b.nominal - a.nominal);
-    } else if (sortBy === 'nomRendah') {
-        sortedData.sort((a, b) => a.nominal - b.nominal);
-    }
-
-    // Render tabel menggunakan data yang sudah di-sort
-    window.renderTabel(sortedData);
-};
-
-window.bukaModalEdit = function(id) {
-    const item = window.dataTransaksi.find(i => i.id == id);
-    if (item) {
-        document.getElementById('editId').value = item.id;
-        document.getElementById('editTipe').value = item.tipe;
-        document.getElementById('editKeterangan').value = item.keterangan;
-        document.getElementById('editNominal').value = item.nominal;
-        
-        const tgl = new Date(item.created_at).toISOString().split('T')[0];
-        document.getElementById('editTanggal').value = tgl;
-        
-        const modalEl = document.getElementById('modalEdit');
-        const instansiModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        instansiModal.show();
-    }
-};
-
-window.renderTabel = function(data) {
-    const tbody = document.getElementById('tabelData');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    data.forEach(item => {
-        const tgl = new Date(item.created_at).getDate();
-        const nominalStr = window.isMasked ? "Rp •••" : `Rp ${item.nominal.toLocaleString('id-ID')}`;
-        const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
-        
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="ps-3 text-secondary">${tgl}</td>
-            <td class="fw-bold">${item.keterangan}</td>
-            <td class="${warna} fw-bold">${nominalStr}</td>
-            <td class="text-center">
-                <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-edit" data-id="${item.id}">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-hapus" data-id="${item.id}">Hapus</button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-};
-
-window.updateSummary = function(data) {
-    let keluar = 0, total = 0;
-    data.forEach(i => {
-        if(i.tipe === 'keluar') keluar += i.nominal;
-        total += (i.tipe === 'masuk' ? i.nominal : -i.nominal);
-    });
-
-    const format = (num) => window.isMasked ? "Rp •••" : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
-    const elTotal = document.getElementById('totalSaldo');
-    if(elTotal) elTotal.innerText = format(total);
-
-    const limit = parseInt(localStorage.getItem('budgetLimit')) || 0;
-    const bar = document.getElementById('budgetBar');
-    const labelP = document.getElementById('labelPersen');
-    const labelS = document.getElementById('labelSisa');
-
-    if (limit > 0 && bar) {
-        const persen = Math.min((keluar / limit) * 100, 100);
-        bar.style.width = persen + '%';
-        bar.className = "progress-bar progress-bar-striped progress-bar-animated " + (persen < 60 ? "bg-success" : persen < 90 ? "bg-warning" : "bg-danger");
-        if(labelP) labelP.innerText = Math.round(persen) + '%';
-        if(labelS) labelS.innerText = `Sisa: ${format(limit - keluar)}`;
-    } else if (bar) {
-        bar.style.width = '0%';
-        if(labelP) labelP.innerText = '0%';
-        if(labelS) labelS.innerText = 'Sisa: Rp 0';
-    }
-};
-
-window.setLimit = function() {
-    const val = document.getElementById('inputLimit').value;
-    localStorage.setItem('budgetLimit', val);
-    window.updateSummary(window.dataTransaksi);
-};
-
-window.toggleMask = function() {
-    window.isMasked = !window.isMasked;
-    // Panggil sortDataTransaksi, bukan renderTabel agar sorting tetap terjaga saat disensor
-    window.updateSummary(window.dataTransaksi);
-    window.sortDataTransaksi(); 
-};
-
-
-// --- 4. FUNGSI EXPORT ---
-window.exportExcel = function(e) {
-    if(e) e.preventDefault();
-    if (window.dataTransaksi.length === 0) return alert("Belum ada data, Bro!");
-    const ws = XLSX.utils.json_to_sheet(window.dataTransaksi.map(i => ({ Tanggal: new Date(i.created_at).toLocaleDateString(), Keterangan: i.keterangan, Tipe: i.tipe.toUpperCase(), Nominal: i.nominal })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Keuangan");
-    XLSX.writeFile(wb, "Laporan_Keuangan.xlsx");
-};
-
-window.exportPDF = function(e) {
-    if(e) e.preventDefault();
-    if (window.dataTransaksi.length === 0) return alert("Belum ada data, Bro!");
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.text("Laporan Keuangan", 14, 15);
-    const rows = window.dataTransaksi.map(i => [new Date(i.created_at).toLocaleDateString(), i.keterangan, i.tipe.toUpperCase(), `Rp ${i.nominal.toLocaleString('id-ID')}`]);
-    doc.autoTable({ head: [['Tanggal', 'Keterangan', 'Tipe', 'Nominal']], body: rows, startY: 20 });
-    doc.save("Laporan_Keuangan.pdf");
-};
