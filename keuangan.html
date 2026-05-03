@@ -32,8 +32,7 @@
                 <p class="text-secondary small">Monitoring Saldo & Kontrol Anggaran Bulanan</p>
             </div>
             <div class="col-md-4 text-md-end">
-                <!-- ID Ditambahkan: btnToggleMask -->
-                <button class="btn btn-sm btn-outline-secondary" id="btnToggleMask">👁️ Sensor</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="window.toggleMask()">👁️ Sensor</button>
             </div>
         </div>
 
@@ -48,8 +47,7 @@
                 <div class="card bg-dark card-finance p-3 h-100">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="text-secondary small m-0">LIMIT PENGELUARAN</h6>
-                        <!-- onchange dihapus, sisa ID -->
-                        <input type="number" id="inputLimit" class="form-control form-control-sm bg-transparent text-light border-secondary w-25">
+                        <input type="number" id="inputLimit" class="form-control form-control-sm bg-transparent text-light border-secondary w-25" onchange="window.setLimit()">
                     </div>
                     <div class="progress" style="height: 12px;">
                         <div id="budgetBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
@@ -95,21 +93,19 @@
                                 <h5 class="m-0 fw-bold">Ledger</h5>
                             </div>
                             <div class="col-md-8 d-flex gap-2">
-                                <!-- onchange dihapus -->
-                                <select id="filterBulan" class="form-select form-select-sm bg-dark text-light border-secondary">
+                                <select id="filterBulan" class="form-select form-select-sm bg-dark text-light border-secondary" onchange="window.ambilDataTransaksi()">
                                     <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
                                     <option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option>
                                     <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
                                     <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
                                 </select>
-                                <select id="filterTahun" class="form-select form-select-sm bg-dark text-light border-secondary">
+                                <select id="filterTahun" class="form-select form-select-sm bg-dark text-light border-secondary" onchange="window.ambilDataTransaksi()">
                                     <option value="2025">2025</option><option value="2026">2026</option>
                                 </select>
                                 <button class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Export</button>
                                 <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                                    <!-- ID Ditambahkan: btnExportExcel & btnExportPDF -->
-                                    <li><a class="dropdown-item" href="#" id="btnExportExcel">Excel</a></li>
-                                    <li><a class="dropdown-item" href="#" id="btnExportPDF">PDF</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="window.exportExcel(event)">Excel</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="window.exportPDF(event)">PDF</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -158,8 +154,7 @@
                             <label class="small text-secondary">Nominal</label>
                             <input type="number" id="editNominal" class="form-control bg-dark text-light border-secondary" required>
                         </div>
-                        <!-- ID Ditambahkan: btnUpdateTransaksi -->
-                        <button type="button" id="btnUpdateTransaksi" class="btn btn-primary w-100 fw-bold">Update Data</button>
+                        <button type="button" onclick="window.updateTransaksi()" class="btn btn-primary w-100 fw-bold">Update Data</button>
                     </form>
                 </div>
             </div>
@@ -169,10 +164,12 @@
     <!-- SCRIPT URUTAN WAJIB -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/auth.js"></script>
-    <script src="assets/js/db.js?v=update1"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Mencegah Cache dengan ?v=final -->
+    <script src="assets/js/db.js?v=final"></script>
 </body>
 </html>
