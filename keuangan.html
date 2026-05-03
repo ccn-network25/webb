@@ -94,17 +94,27 @@
                 <div class="card bg-dark card-finance">
                     <div class="card-header bg-dark border-secondary p-3">
                         <div class="row g-2 align-items-center">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <h5 class="m-0 fw-bold">Ledger</h5>
                             </div>
-                            <div class="col-md-8 d-flex gap-2">
-                                <select id="filterBulan" class="form-select form-select-sm bg-dark text-light border-secondary">
-                                    <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
-                                    <option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option>
-                                    <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
-                                    <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                            <div class="col-md-9 d-flex gap-2 justify-content-end flex-wrap">
+                                <!-- FITUR SORTING BARU -->
+                                <select id="sortData" class="form-select form-select-sm bg-dark text-light border-secondary w-auto">
+                                    <option value="terbaru">⏳ Terbaru</option>
+                                    <option value="terlama">⌛ Terlama</option>
+                                    <option value="az">🔠 A - Z</option>
+                                    <option value="za">🔡 Z - A</option>
+                                    <option value="nomTinggi">📈 Nominal Tertinggi</option>
+                                    <option value="nomRendah">📉 Nominal Terendah</option>
                                 </select>
-                                <select id="filterTahun" class="form-select form-select-sm bg-dark text-light border-secondary">
+                                
+                                <select id="filterBulan" class="form-select form-select-sm bg-dark text-light border-secondary w-auto">
+                                    <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
+                                    <option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option>
+                                    <option value="07">Jul</option><option value="08">Ags</option><option value="09">Sep</option>
+                                    <option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option>
+                                </select>
+                                <select id="filterTahun" class="form-select form-select-sm bg-dark text-light border-secondary w-auto">
                                     <option value="2025">2025</option><option value="2026">2026</option>
                                 </select>
                                 <button class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Export</button>
@@ -178,7 +188,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
-    <!-- Mencegah Cache dengan ?v=tglUpdate1 -->
-    <script src="assets/js/db.js?v=tglUpdate1"></script>
+    <!-- Paksa baca cache baru -->
+    <script src="assets/js/db.js?v=sortingBaru"></script>
 </body>
 </html>
