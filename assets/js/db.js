@@ -8,6 +8,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const fTahun = document.getElementById('filterTahun');
     if (fBulan) fBulan.value = String(skrg.getMonth() + 1).padStart(2, '0');
     if (fTahun) fTahun.value = skrg.getFullYear();
+    // Set default input tanggal ke hari ini
+    const elTanggal = document.getElementById('tanggal');
+    if (elTanggal) {
+        // Format YYYY-MM-DD
+        elTanggal.value = skrg.toISOString().split('T')[0]; 
+    }
 
     const iLim = document.getElementById('inputLimit');
     if (iLim) iLim.value = localStorage.getItem('budgetLimit') || 0;
@@ -74,16 +80,28 @@ window.tambahTransaksi = async function(e) {
     const tipe = document.getElementById('tipe').value;
     const keterangan = document.getElementById('keterangan').value;
     const nominal = document.getElementById('nominal').value;
+    const tanggal = document.getElementById('tanggal').value; // Ambil nilai tanggal
+
+    // Tambahkan jam 12 siang (T12:00:00Z) agar tidak terjadi pergeseran hari karena zona waktu
+    const createdAt = `${tanggal}T12:00:00.000Z`;
 
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
         const { error } = await supabaseClient
             .from('transaksi_keuangan')
-            .insert([{ user_id: user.id, tipe, keterangan, nominal: parseInt(nominal) }]);
+            .insert([{ 
+                user_id: user.id, 
+                tipe, 
+                keterangan, 
+                nominal: parseInt(nominal),
+                created_at: createdAt // Timpa waktu otomatis Supabase
+            }]);
 
         if (error) throw error;
         
         document.getElementById('formTransaksi').reset();
+        // Kembalikan lagi input tanggal ke hari ini setelah reset
+        document.getElementById('tanggal').value = new Date().toISOString().split('T')[0];
         window.ambilDataTransaksi();
     } catch (err) { alert("Gagal Simpan: " + err.message); }
 };
@@ -93,11 +111,19 @@ window.updateTransaksi = async function() {
     const tipe = document.getElementById('editTipe').value;
     const keterangan = document.getElementById('editKeterangan').value;
     const nominal = document.getElementById('editNominal').value;
+    const tanggal = document.getElementById('editTanggal').value;
+
+    const createdAt = `${tanggal}T12:00:00.000Z`;
 
     try {
         const { error } = await supabaseClient
             .from('transaksi_keuangan')
-            .update({ tipe, keterangan, nominal: parseInt(nominal) })
+            .update({ 
+                tipe, 
+                keterangan, 
+                nominal: parseInt(nominal),
+                created_at: createdAt
+            })
             .eq('id', id);
 
         if (error) throw error;
@@ -129,6 +155,10 @@ window.bukaModalEdit = function(id) {
         document.getElementById('editTipe').value = item.tipe;
         document.getElementById('editKeterangan').value = item.keterangan;
         document.getElementById('editNominal').value = item.nominal;
+        
+        // Ekstrak tanggal (YYYY-MM-DD) dari created_at
+        const tgl = new Date(item.created_at).toISOString().split('T')[0];
+        document.getElementById('editTanggal').value = tgl;
         
         const modalEl = document.getElementById('modalEdit');
         const instansiModal = bootstrap.Modal.getOrCreateInstance(modalEl);
