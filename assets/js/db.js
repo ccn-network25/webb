@@ -15,7 +15,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById('formTransaksi');
     if (form) form.addEventListener('submit', window.tambahTransaksi);
 
-    // Beri jeda agar auth.js selesai memverifikasi Supabase
+    // --- EVENT DELEGATION TABEL (ANTI-BLOKIR CSP) ---
+    const tbody = document.getElementById('tabelData');
+    if (tbody) {
+        tbody.addEventListener('click', function(e) {
+            // Cek apakah yang diklik adalah tombol Edit atau Hapus
+            const btnEdit = e.target.closest('.btn-edit');
+            const btnHapus = e.target.closest('.btn-hapus');
+
+            if (btnEdit) {
+                const id = btnEdit.getAttribute('data-id');
+                window.bukaModalEdit(id);
+            }
+            
+            if (btnHapus) {
+                const id = btnHapus.getAttribute('data-id');
+                window.hapusData(id);
+            }
+        });
+    }
+
     setTimeout(() => { window.ambilDataTransaksi(); }, 500);
 });
 
@@ -83,7 +102,6 @@ window.updateTransaksi = async function() {
 
         if (error) throw error;
 
-        // Tutup Modal dengan aman
         const modalEl = document.getElementById('modalEdit');
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
@@ -129,15 +147,15 @@ window.renderTabel = function(data) {
         const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
         
         const tr = document.createElement('tr');
-        // Tanda kutip tunggal pada ${item.id} menjaga agar tidak terjadi error jika tipe data string
+        // onclick DIHAPUS, DIGANTI PAKAI CLASS (btn-edit/btn-hapus) & DATA-ID
         tr.innerHTML = `
             <td class="ps-3 text-secondary">${tgl}</td>
             <td class="fw-bold">${item.keterangan}</td>
             <td class="${warna} fw-bold">${nominalStr}</td>
             <td class="text-center">
                 <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="window.bukaModalEdit('${item.id}')">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="window.hapusData('${item.id}')">Hapus</button>
+                    <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-edit" data-id="${item.id}">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-hapus" data-id="${item.id}">Hapus</button>
                 </div>
             </td>
         `;
