@@ -7,6 +7,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 // --- WHITELIST EMAIL ---
 // (MASUKKAN EMAIL GITHUB KAMU DI SINI)
+// --- WHITELIST EMAIL ---
 const emailAdmin = "ccn.start@gmail.com";
 
 async function loginWithGithub() {
@@ -67,25 +68,71 @@ async function checkSession() {
     }
 }
 
+// ==========================================
+// --- LOGIKA KEAMANAN: IDLE TIMER SESI ---
+// ==========================================
+let waktuSisa = 15 * 60; // 15 menit dikonversi jadi 900 detik
+
+function mulaiTimerSesi() {
+    // Fungsi berjalan setiap 1 detik (1000 milidetik)
+    setInterval(() => {
+        const display = document.getElementById('sessionTimer');
+        if (!display) return; // Hanya jalan kalau ada tulisan "Sesi: 15:00" di layar
+
+        waktuSisa--; // Kurangi 1 detik
+        
+        // Kalkulasi sisa menit dan detik
+        let m = Math.floor(waktuSisa / 60);
+        let s = waktuSisa % 60;
+        
+        // Tampilkan ke layar dengan format 00:00
+        display.innerText = `Sesi: ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        
+        // Ubah warna jadi merah kalau sisa waktu tinggal 1 menit (60 detik)
+        if (waktuSisa <= 60) {
+            display.className = "small text-danger fw-bold";
+        } else {
+            display.className = "small text-warning fw-bold";
+        }
+
+        // Kalau waktu habis
+        if (waktuSisa <= 0) {
+            waktuSisa = 9999; // Set ke angka tinggi biar alert gak muncul berkali-kali
+            alert("Waktu sesi habis karena tidak ada aktivitas, Bro! Sistem melakukan auto-logout demi keamanan.");
+            logout();
+        }
+    }, 1000);
+}
+
+// Fungsi ringan untuk mengembalikan waktu ke 15 menit
+function resetWaktuSesi() {
+    waktuSisa = 15 * 60;
+}
+// ==========================================
+
+
 document.addEventListener("DOMContentLoaded", () => {
     checkSession(); 
 
     // --- ALAT SADAP TOMBOL LOGIN ---
     const btnLogin = document.getElementById('btnLoginGithub');
-    
     if (btnLogin) {
         console.log("STATUS: Tombol login berhasil dideteksi oleh JavaScript!"); 
-        
         btnLogin.addEventListener('click', (e) => {
             e.preventDefault(); 
             console.log("STATUS: Tombol diklik! Menjalankan perintah login..."); 
             loginWithGithub(); 
         });
-    } else {
-        console.error("STATUS ERROR: JavaScript TIDAK BISA menemukan tombol login di HTML. Cek ID-nya!");
     }
     // ---------------------------------
 
     const btnLogout = document.getElementById('logoutBtn');
     if (btnLogout) btnLogout.addEventListener('click', logout);
-}); // <--- PASTIKAN BARIS INI IKUT TERSALIN DAN BERADA PALING BAWAH
+    
+    // --- JALANKAN TIMER ---
+    mulaiTimerSesi();
+    
+    // Reset timer setiap kali ada klik mouse atau ketikan di keyboard
+    window.addEventListener('click', resetWaktuSesi);
+    window.addEventListener('keypress', resetWaktuSesi);
+});
