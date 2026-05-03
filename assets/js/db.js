@@ -2,68 +2,49 @@ let dataTransaksi = [];
 let isMasked = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("DB.js: Menyiapkan Event Listener...");
+    console.log("DB.js: Sistem Siap. Menyiapkan Fungsi Global...");
 
-    // 1. Set Filter Default Hari Ini
+    // 1. Set Filter Waktu Default
     const skrg = new Date();
     document.getElementById('filterBulan').value = String(skrg.getMonth() + 1).padStart(2, '0');
     document.getElementById('filterTahun').value = skrg.getFullYear();
     
-    // 2. Load Limit Budget
+    // 2. Load Budget Limit dari Local Storage
     const savedLimit = localStorage.getItem('budgetLimit') || 0;
     document.getElementById('inputLimit').value = savedLimit;
 
-    // --- DAFTAR EVENT LISTENER ---
-    
+    // 3. Pasang Event Listener Element Statis
     const form = document.getElementById('formTransaksi');
-    if (form) form.addEventListener('submit', tambahTransaksi);
-
-    const btnUpdate = document.getElementById('btnUpdateTransaksi');
-    if (btnUpdate) btnUpdate.addEventListener('click', updateTransaksi);
+    if (form) form.addEventListener('submit', window.tambahTransaksi);
 
     const btnMask = document.getElementById('btnToggleMask');
-    if (btnMask) btnMask.addEventListener('click', toggleMask);
+    if (btnMask) btnMask.addEventListener('click', window.toggleMask);
 
     const inputLim = document.getElementById('inputLimit');
-    if (inputLim) inputLim.addEventListener('input', setLimit);
+    if (inputLim) inputLim.addEventListener('input', window.setLimit);
 
     const filterBulan = document.getElementById('filterBulan');
-    if (filterBulan) filterBulan.addEventListener('change', ambilDataTransaksi);
+    if (filterBulan) filterBulan.addEventListener('change', window.ambilDataTransaksi);
 
     const filterTahun = document.getElementById('filterTahun');
-    if (filterTahun) filterTahun.addEventListener('change', ambilDataTransaksi);
+    if (filterTahun) filterTahun.addEventListener('change', window.ambilDataTransaksi);
 
     const btnExportExcel = document.getElementById('btnExportExcel');
-    if (btnExportExcel) btnExportExcel.addEventListener('click', exportExcel);
+    if (btnExportExcel) btnExportExcel.addEventListener('click', window.exportExcel);
 
     const btnExportPDF = document.getElementById('btnExportPDF');
-    if (btnExportPDF) btnExportPDF.addEventListener('click', exportPDF);
+    if (btnExportPDF) btnExportPDF.addEventListener('click', window.exportPDF);
 
-    // Event Delegation untuk Tabel (Nangkap klik dari tombol dinamis)
-    const tabelData = document.getElementById('tabelData');
-    if (tabelData) {
-        tabelData.addEventListener('click', function(e) {
-            const btnEdit = e.target.closest('.btn-edit');
-            const btnHapus = e.target.closest('.btn-hapus');
-
-            if (btnEdit) {
-                const id = btnEdit.getAttribute('data-id');
-                bukaModalEdit(id);
-            }
-            if (btnHapus) {
-                const id = btnHapus.getAttribute('data-id');
-                hapusData(id);
-            }
-        });
-    }
+    const btnUpdate = document.getElementById('btnUpdateTransaksi');
+    if (btnUpdate) btnUpdate.addEventListener('click', window.updateTransaksi);
 
     // Load Data Awal
-    setTimeout(() => { ambilDataTransaksi(); }, 500);
+    setTimeout(() => { window.ambilDataTransaksi(); }, 500);
 });
 
 // --- CORE FUNCTIONS SUPABASE ---
 
-async function ambilDataTransaksi() {
+window.ambilDataTransaksi = async function() {
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return;
@@ -85,14 +66,14 @@ async function ambilDataTransaksi() {
         if (error) throw error;
         
         dataTransaksi = data; 
-        updateSummary(data);
-        renderTabel(data);
+        window.updateSummary(data);
+        window.renderTabel(data);
     } catch (err) {
         console.error("Gagal Ambil Data:", err.message);
     }
-}
+};
 
-async function tambahTransaksi(e) {
+window.tambahTransaksi = async function(e) {
     e.preventDefault();
     const tipe = document.getElementById('tipe').value;
     const keterangan = document.getElementById('keterangan').value;
@@ -107,11 +88,11 @@ async function tambahTransaksi(e) {
         if (error) throw error;
         
         document.getElementById('formTransaksi').reset();
-        ambilDataTransaksi();
+        window.ambilDataTransaksi();
     } catch (err) { alert("Gagal Simpan: " + err.message); }
-}
+};
 
-async function updateTransaksi() {
+window.updateTransaksi = async function() {
     const id = document.getElementById('editId').value;
     const tipe = document.getElementById('editTipe').value;
     const keterangan = document.getElementById('editKeterangan').value;
@@ -125,25 +106,26 @@ async function updateTransaksi() {
 
         if (error) throw error;
 
+        // Tutup Modal
         const modalEl = document.getElementById('modalEdit');
         const modalInstance = bootstrap.Modal.getInstance(modalEl);
         if (modalInstance) modalInstance.hide();
 
-        ambilDataTransaksi();
+        window.ambilDataTransaksi();
     } catch (err) { alert("Gagal Update: " + err.message); }
-}
+};
 
-async function hapusData(id) {
+window.hapusData = async function(id) {
     if (confirm("Yakin mau hapus transaksi ini, Bro?")) {
         try {
             const { error } = await supabaseClient.from('transaksi_keuangan').delete().eq('id', id);
             if (error) throw error;
-            ambilDataTransaksi();
+            window.ambilDataTransaksi();
         } catch (err) { alert("Gagal Hapus: " + err.message); }
     }
-}
+};
 
-function bukaModalEdit(id) {
+window.bukaModalEdit = function(id) {
     const item = dataTransaksi.find(i => i.id == id);
     if (item) {
         document.getElementById('editId').value = item.id;
@@ -152,14 +134,15 @@ function bukaModalEdit(id) {
         document.getElementById('editNominal').value = item.nominal;
         
         const modalEl = document.getElementById('modalEdit');
-        const instansiModal = new bootstrap.Modal(modalEl);
+        // Fitur anti-freeze Bootstrap
+        const instansiModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         instansiModal.show();
     }
-}
+};
 
 // --- UI LOGIC ---
 
-function renderTabel(data) {
+window.renderTabel = function(data) {
     const tbody = document.getElementById('tabelData');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -170,23 +153,23 @@ function renderTabel(data) {
         const warna = item.tipe === 'masuk' ? 'text-success' : 'text-danger';
         
         const tr = document.createElement('tr');
-        // Tidak ada lagi onclick, kita gunakan class "btn-edit" dan "data-id"
+        // Menggunakan onclick eksplisit dengan pemanggilan object window
         tr.innerHTML = `
             <td class="ps-3 text-secondary">${tgl}</td>
             <td class="fw-bold">${item.keterangan}</td>
             <td class="${warna} fw-bold">${nominalStr}</td>
             <td class="text-center">
                 <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-edit" data-id="${item.id}">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-hapus" data-id="${item.id}">Hapus</button>
+                    <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="window.bukaModalEdit('${item.id}')">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="window.hapusData('${item.id}')">Hapus</button>
                 </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
-}
+};
 
-function updateSummary(data) {
+window.updateSummary = function(data) {
     let keluar = 0, total = 0;
     data.forEach(i => {
         if(i.tipe === 'keluar') keluar += i.nominal;
@@ -209,36 +192,36 @@ function updateSummary(data) {
         document.getElementById('labelPersen').innerText = '0%';
         document.getElementById('labelSisa').innerText = 'Sisa: Rp 0';
     }
-}
+};
 
-function setLimit() {
+window.setLimit = function() {
     const val = document.getElementById('inputLimit').value;
     localStorage.setItem('budgetLimit', val);
-    updateSummary(dataTransaksi);
-}
+    window.updateSummary(dataTransaksi);
+};
 
-function toggleMask() {
+window.toggleMask = function() {
     isMasked = !isMasked;
     const btnMask = document.getElementById('btnToggleMask');
     if(btnMask) btnMask.innerText = isMasked ? '🙈 Tampilkan' : '👁️ Sensor';
     
-    updateSummary(dataTransaksi);
-    renderTabel(dataTransaksi);
-}
+    window.updateSummary(dataTransaksi);
+    window.renderTabel(dataTransaksi);
+};
 
 // --- EXPORT LOGIC ---
 
-function exportExcel(e) {
-    e.preventDefault();
+window.exportExcel = function(e) {
+    if(e) e.preventDefault();
     if (dataTransaksi.length === 0) return alert("Belum ada data!");
     const ws = XLSX.utils.json_to_sheet(dataTransaksi.map(i => ({ Tanggal: new Date(i.created_at).toLocaleDateString(), Keterangan: i.keterangan, Tipe: i.tipe.toUpperCase(), Nominal: i.nominal })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Keuangan");
     XLSX.writeFile(wb, "Laporan_Keuangan_Ivan.xlsx");
-}
+};
 
-function exportPDF(e) {
-    e.preventDefault();
+window.exportPDF = function(e) {
+    if(e) e.preventDefault();
     if (dataTransaksi.length === 0) return alert("Belum ada data!");
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -246,4 +229,4 @@ function exportPDF(e) {
     const rows = dataTransaksi.map(i => [new Date(i.created_at).toLocaleDateString(), i.keterangan, i.tipe.toUpperCase(), `Rp ${i.nominal.toLocaleString('id-ID')}`]);
     doc.autoTable({ head: [['Tanggal', 'Keterangan', 'Tipe', 'Nominal']], body: rows, startY: 20 });
     doc.save("Laporan_Keuangan_Ivan.pdf");
-}
+};
